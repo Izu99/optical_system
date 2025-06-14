@@ -1,0 +1,127 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code related
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+.packages
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+android/.idea/
+android/gradle/
+android/build/
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Flutter/Flutter.framework/
+macos/Flutter/Flutter.podspec
+macos/Flutter/Generated.xcconfig
+macos/Flutter/ephemeral/
+
+# iOS
+ios/Flutter/Flutter.framework/
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/Podfile.lock
+
+# Linux
+linux/flutter/
+linux/build/
+
+# Windows
+windows/flutter/
+windows/build/
+
+# Web
+web/build/
+
+# Unit test cache
+test_cache/
+
+# Asset/Font/Shader generated files
+**/build/
+**/generated/
+**/gen/
+**/out/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/ios/Runner.xcworkspace/
+**/ios/Podfile.lock
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/Flutter.framework/
+**/macos/Flutter/Flutter.podspec
+**/macos/Flutter/Generated.xcconfig
+**/macos/Flutter/ephemeral/
+**/build/
+**/out/
+**/gen/
+**/generated/
+**/linux/flutter/
+**/linux/build/
+**/windows/flutter/
+**/windows/build/
+**/web/build/
+**/.dart_tool/
+**/.pub/
+**/.packages
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.flutter-versions
+**/.idea/
+**/.vscode/
+**/*.iml
+**/*.ipr
+**/*.iws
+**/*.log
+**/*.tmp
+**/*.swp
+**/*.swo
+**/.DS_Store
+**/*.lock
