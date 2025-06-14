@@ -51,6 +51,19 @@ class ShopHelper {
         image_path TEXT
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS lenses (
+        lens_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        power TEXT NOT NULL,
+        coating TEXT NOT NULL,
+        category TEXT NOT NULL,
+        cost REAL NOT NULL,
+        stock INTEGER NOT NULL,
+        selling_price REAL NOT NULL,
+        branch_id INTEGER NOT NULL,
+        shop_id INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<bool> isShopNameUnique(String shopName) async {

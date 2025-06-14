@@ -203,6 +203,11 @@ class Sidebar extends StatelessWidget {
         'title': 'Frames',
         'page': 'frames',
       },
+      {
+        'icon': Icons.remove_red_eye_rounded,
+        'title': 'Lenses',
+        'page': 'lenses',
+      },
     ];
   }
 
