@@ -208,6 +208,11 @@ class Sidebar extends StatelessWidget {
         'title': 'Lenses',
         'page': 'lenses',
       },
+      {
+        'icon': Icons.receipt_long_rounded,
+        'title': 'Prescriptions',
+        'page': 'prescriptions',
+      },
     ];
   }
 

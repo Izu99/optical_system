@@ -64,6 +64,23 @@ class ShopHelper {
         shop_id INTEGER NOT NULL
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS prescriptions (
+        prescription_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        left_pd REAL NOT NULL,
+        right_pd REAL NOT NULL,
+        left_add REAL,
+        right_add REAL,
+        left_axis REAL,
+        right_axis REAL,
+        left_sph REAL,
+        right_sph REAL,
+        right_cyl REAL,
+        customer_id INTEGER NOT NULL,
+        branch_id INTEGER NOT NULL,
+        shop_id INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<bool> isShopNameUnique(String shopName) async {

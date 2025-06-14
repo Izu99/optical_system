@@ -84,7 +84,43 @@ class _LensListScreenState extends State<LensListScreen> {
                   } else if (snapshot.hasError) {
                     return Center(child: Text('Error: \\${snapshot.error}'));
                   } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text('No lenses found.'));
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(context).colorScheme.primary,
+                                  Theme.of(context).colorScheme.secondary,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Icon(Icons.remove_red_eye_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 32),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No lenses yet',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Click the Add button to add your first lens',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   }
                   final lenses = snapshot.data!;
                   return LayoutBuilder(

@@ -4,13 +4,12 @@ import './customer_list_screen.dart';
 import './branch_list_screen.dart';
 import './login_register_screen.dart';
 import './shop_form_screen.dart';
-import './admin_profile_screen.dart';
 import './employee_screen.dart';
-import '../models/admin.dart';
 import '../db/shop_helper.dart';
 import '../widget/app_window_top_bar.dart';
 import './frame_list_screen.dart';
 import './lens_list_screen.dart';
+import './prescription_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -91,6 +90,8 @@ class MainScreenState extends State<MainScreen> {
         return const FrameListScreen(branchId: 1, shopId: 1); // TODO: Replace with actual selected branch/shop
       case 'lenses':
         return const LensListScreen(branchId: 1, shopId: 1); // TODO: Replace with actual selected branch/shop
+      case 'prescriptions':
+        return const PrescriptionScreen();
       default:
         return const CustomersScreen();
     }
