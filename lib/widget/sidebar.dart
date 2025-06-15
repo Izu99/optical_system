@@ -213,6 +213,11 @@ class Sidebar extends StatelessWidget {
         'title': 'Prescriptions',
         'page': 'prescriptions',
       },
+      {
+        'icon': Icons.request_quote_rounded,
+        'title': 'Bills',
+        'page': 'bills',
+      },
     ];
   }
 

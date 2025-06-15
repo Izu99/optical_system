@@ -44,4 +44,7 @@ class Lens {
     'branch_id': branchId,
     'shop_id': shopId,
   };
+
+  int? get id => lensId;
+  String get name => '$power $category';
 }

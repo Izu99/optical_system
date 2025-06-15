@@ -10,6 +10,7 @@ import '../widget/app_window_top_bar.dart';
 import './frame_list_screen.dart';
 import './lens_list_screen.dart';
 import './prescription_screen.dart';
+import './bill_list_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -92,6 +93,8 @@ class MainScreenState extends State<MainScreen> {
         return const LensListScreen(branchId: 1, shopId: 1); // TODO: Replace with actual selected branch/shop
       case 'prescriptions':
         return const PrescriptionScreen();
+      case 'bills':
+        return const BillListScreen();
       default:
         return const CustomersScreen();
     }

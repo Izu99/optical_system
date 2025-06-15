@@ -52,4 +52,7 @@ class Frame {
         'shop_id': shopId,
         'image_path': imagePath,
       };
+
+  int? get id => frameId;
+  String get name => '$brand $model';
 }

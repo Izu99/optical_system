@@ -36,6 +36,29 @@ class DatabaseHelper {
         createdAt TEXT NOT NULL
       )
     ''');
+    await db.execute('''
+      CREATE TABLE billings (
+        billing_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        sales_person TEXT,
+        invoice_date TEXT,
+        delivery_date TEXT,
+        invoice_time TEXT,
+        delivery_time TEXT,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE billing_items (
+        billing_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        billing_id INTEGER NOT NULL,
+        frame_id INTEGER,
+        lens_id INTEGER,
+        frame_quantity INTEGER,
+        lens_quantity INTEGER,
+        FOREIGN KEY (billing_id) REFERENCES billings(billing_id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   // Customer CRUD operations
