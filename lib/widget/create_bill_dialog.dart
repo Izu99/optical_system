@@ -36,6 +36,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
   late final TextEditingController _salesPersonController = TextEditingController();
   late final TextEditingController _invoiceTimeController = TextEditingController();
   late final TextEditingController _deliveryTimeController = TextEditingController();
+  final TextEditingController _customerSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -60,14 +61,6 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
           (c) => c.id == widget.bill!.customerId,
           orElse: () => customers.isNotEmpty ? customers.first : Customer(id: 0, name: '', email: '', phoneNumber: '', address: '', createdAt: DateTime.now()),
         );
-        _salesPerson = widget.bill!.salesPerson;
-        _invoiceDate = widget.bill!.invoiceDate;
-        _deliveryDate = widget.bill!.deliveryDate;
-        _invoiceTime = widget.bill!.invoiceTime;
-        _deliveryTime = widget.bill!.deliveryTime;
-        _salesPersonController.text = widget.bill!.salesPerson;
-        _invoiceTimeController.text = widget.bill!.invoiceTime ?? '';
-        _deliveryTimeController.text = widget.bill!.deliveryTime ?? '';
       });
       final billItems = await BillHelper.instance.getBillItems(widget.bill!.billingId!);
       setState(() {
@@ -80,6 +73,85 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
     }
   }
 
+  Future<void> _addNewCustomerDialog() async {
+    final formKey = GlobalKey<FormState>();
+    String name = '', email = '', phone = '', address = '';
+    bool loading = false;
+    final result = await showDialog<Customer>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Add New Customer'),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Name'),
+                      onChanged: (v) => name = v,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Email'),
+                      onChanged: (v) => email = v,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Phone Number'),
+                      onChanged: (v) => phone = v,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(labelText: 'Address'),
+                      onChanged: (v) => address = v,
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: loading
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setState(() => loading = true);
+                        final newCustomer = Customer(
+                          name: name,
+                          email: email,
+                          phoneNumber: phone,
+                          address: address,
+                          createdAt: DateTime.now(),
+                        );
+                        final id = await DatabaseHelper.instance.createCustomer(newCustomer);
+                        final created = newCustomer.copyWith(id: id);
+                        setState(() => loading = false);
+                        Navigator.of(context).pop(created);
+                      },
+                child: loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Add'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (result != null) {
+      setState(() {
+        _customers.add(result);
+        _selectedCustomer = result;
+        _customerSearchController.text = result.name;
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _selectedCustomer == null) return;
     if (widget.isEdit && widget.onUpdate != null) {
@@ -88,13 +160,18 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
     }
     setState(() { _isLoading = true; });
     try {
+      // Ensure dates and times are set
+      _invoiceDate ??= DateTime.now();
+      _deliveryDate ??= DateTime.now();
+      _invoiceTime ??= TimeOfDay.now().format(context);
+      _deliveryTime ??= TimeOfDay.now().format(context);
       final bill = Bill(
         billingId: widget.isEdit ? widget.bill!.billingId : null,
         deliveryDate: _deliveryDate,
         invoiceDate: _invoiceDate,
         invoiceTime: _invoiceTime,
         deliveryTime: _deliveryTime,
-        salesPerson: _salesPerson ?? '',
+        salesPerson: _salesPerson ?? _salesPersonController.text,
         customerId: _selectedCustomer!.id!,
       );
       int billingId;
@@ -108,8 +185,18 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       } else {
         billingId = await BillHelper.instance.createBill(bill);
       }
+      // Validate and save BillItems
       for (final item in _items) {
-        await BillHelper.instance.createBillItem(item.copyWith(billingId: billingId));
+        if ((item.frameId == null && item.lensId == null) || ((item.frameQuantity ?? 0) <= 0 && (item.lensQuantity ?? 0) <= 0)) {
+          continue; // skip invalid items
+        }
+        await BillHelper.instance.createBillItem(
+          item.copyWith(
+            billingId: billingId,
+            frameQuantity: item.frameQuantity ?? 0,
+            lensQuantity: item.lensQuantity ?? 0,
+          ),
+        );
       }
       if (mounted) {
         Navigator.of(context).pop(bill);
@@ -162,26 +249,74 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  DropdownButtonFormField<Customer>(
-                    value: _selectedCustomer,
-                    decoration: const InputDecoration(
-                      labelText: 'Customer',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _customers.map((customer) {
-                      return DropdownMenuItem<Customer>(
-                        value: customer,
-                        child: Text(customer.name, overflow: TextOverflow.ellipsis),
-                      );
-                    }).toList(),
-                    onChanged: (Customer? value) {
-                      setState(() {
-                        _selectedCustomer = value;
+                  // Customer Autocomplete
+                  Autocomplete<Customer>(
+                    displayStringForOption: (c) => c.name,
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text == '') {
+                        return _customers;
+                      }
+                      return _customers.where((Customer c) {
+                        final q = textEditingValue.text.toLowerCase();
+                        return c.name.toLowerCase().contains(q) ||
+                               c.email.toLowerCase().contains(q) ||
+                               c.phoneNumber.toLowerCase().contains(q);
                       });
                     },
-                    validator: (value) => value == null ? 'Please select a customer' : null,
-                    isExpanded: true,
-                    hint: const Text('Customer'),
+                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                      _customerSearchController.text = controller.text;
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Customer',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.person_add_alt_1_rounded),
+                            tooltip: 'Add New Customer',
+                            onPressed: _addNewCustomerDialog,
+                          ),
+                        ),
+                        validator: (v) => _selectedCustomer == null ? 'Please select a customer' : null,
+                        onChanged: (v) {
+                          setState(() {
+                            _selectedCustomer = _customers.firstWhere(
+                              (c) => c.name.toLowerCase() == v.toLowerCase(),
+                              orElse: () => Customer(id: 0, name: '', email: '', phoneNumber: '', address: '', createdAt: DateTime.now()),
+                            );
+                          });
+                        },
+                      );
+                    },
+                    onSelected: (Customer selection) {
+                      setState(() {
+                        _selectedCustomer = selection;
+                        _customerSearchController.text = selection.name;
+                      });
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: SizedBox(
+                            height: 200,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: options.length,
+                              itemBuilder: (context, index) {
+                                final option = options.elementAt(index);
+                                return ListTile(
+                                  title: Text(option.name),
+                                  subtitle: Text(option.phoneNumber),
+                                  onTap: () => onSelected(option),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -244,123 +379,114 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text('Bill Items', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  Text('Bill Item', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  ..._items.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.03),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: DropdownButtonFormField<int>(
-                                value: item.frameId,
-                                decoration: const InputDecoration(
-                                  labelText: 'Frame',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: [
-                                  const DropdownMenuItem<int>(value: null, child: Text('None')),
-                                  ..._frames.map((frame) => DropdownMenuItem<int>(
-                                        value: frame.frameId,
-                                        child: Text('${frame.brand} (${frame.model})'),
-                                      ))
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    _items[index] = item.copyWith(frameId: v);
-                                  });
-                                },
-                                isExpanded: true,
+                  Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.03),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<int>(
+                              value: _items.isNotEmpty ? _items[0].frameId : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Frame',
+                                border: OutlineInputBorder(),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 2,
-                              child: DropdownButtonFormField<int>(
-                                value: item.lensId,
-                                decoration: const InputDecoration(
-                                  labelText: 'Lens',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: [
-                                  const DropdownMenuItem<int>(value: null, child: Text('None')),
-                                  ..._lenses.map((lens) => DropdownMenuItem<int>(
-                                        value: lens.lensId,
-                                        child: Text('${lens.power} ${lens.category}'),
-                                      ))
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    _items[index] = item.copyWith(lensId: v);
-                                  });
-                                },
-                                isExpanded: true,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 1,
-                              child: TextFormField(
-                                initialValue: item.frameQuantity?.toString() ?? '',
-                                decoration: const InputDecoration(
-                                  labelText: 'Frame Qty',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _items[index] = item.copyWith(frameQuantity: int.tryParse(v));
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 1,
-                              child: TextFormField(
-                                initialValue: item.lensQuantity?.toString() ?? '',
-                                decoration: const InputDecoration(
-                                  labelText: 'Lens Qty',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _items[index] = item.copyWith(lensQuantity: int.tryParse(v));
-                                  });
-                                },
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_rounded, color: Colors.red),
-                              tooltip: 'Remove',
-                              onPressed: () {
+                              items: [
+                                const DropdownMenuItem<int>(value: null, child: Text('None')),
+                                ..._frames.map((frame) => DropdownMenuItem<int>(
+                                      value: frame.frameId,
+                                      child: Text('${frame.brand} (${frame.model})'),
+                                    ))
+                              ],
+                              onChanged: (v) {
                                 setState(() {
-                                  _items.removeAt(index);
+                                  if (_items.isEmpty) {
+                                    _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, frameId: v));
+                                  } else {
+                                    _items[0] = _items[0].copyWith(frameId: v);
+                                  }
+                                });
+                              },
+                              isExpanded: true,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: DropdownButtonFormField<int>(
+                              value: _items.isNotEmpty ? _items[0].lensId : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Lens',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: [
+                                const DropdownMenuItem<int>(value: null, child: Text('None')),
+                                ..._lenses.map((lens) => DropdownMenuItem<int>(
+                                      value: lens.lensId,
+                                      child: Text('${lens.power} ${lens.category}'),
+                                    ))
+                              ],
+                              onChanged: (v) {
+                                setState(() {
+                                  if (_items.isEmpty) {
+                                    _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, lensId: v));
+                                  } else {
+                                    _items[0] = _items[0].copyWith(lensId: v);
+                                  }
+                                });
+                              },
+                              isExpanded: true,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              initialValue: _items.isNotEmpty && _items[0].frameQuantity != null ? _items[0].frameQuantity.toString() : '',
+                              decoration: const InputDecoration(
+                                labelText: 'Frame Qty',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (v) {
+                                setState(() {
+                                  if (_items.isEmpty) {
+                                    _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, frameQuantity: int.tryParse(v)));
+                                  } else {
+                                    _items[0] = _items[0].copyWith(frameQuantity: int.tryParse(v));
+                                  }
                                 });
                               },
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 1,
+                            child: TextFormField(
+                              initialValue: _items.isNotEmpty && _items[0].lensQuantity != null ? _items[0].lensQuantity.toString() : '',
+                              decoration: const InputDecoration(
+                                labelText: 'Lens Qty',
+                                border: OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (v) {
+                                setState(() {
+                                  if (_items.isEmpty) {
+                                    _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, lensQuantity: int.tryParse(v)));
+                                  } else {
+                                    _items[0] = _items[0].copyWith(lensQuantity: int.tryParse(v));
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                    );
-                  }),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Add Item'),
-                      onPressed: () {
-                        setState(() {
-                          _items.add(BillItem(billingId: widget.bill?.billingId ?? 0));
-                        });
-                      },
                     ),
                   ),
                   const SizedBox(height: 24),

@@ -180,7 +180,7 @@ class MyApp extends StatelessWidget {
             theme: themeProvider.lightTheme,
             darkTheme: themeProvider.darkTheme,
             themeMode: themeProvider.themeMode,
-            home: const LoginRegisterScreen(),
+            home: const LoginRegisterScreen(), // <--- Set your desired start screen here
           );
         },
       ),

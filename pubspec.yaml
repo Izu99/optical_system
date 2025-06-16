@@ -17,6 +17,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   crypto: ^3.0.6
   bitsdojo_window: ^0.1.6
+  fl_chart: ^1.0.0
 
 dev_dependencies:
   flutter_test:

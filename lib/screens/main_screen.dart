@@ -11,6 +11,8 @@ import './frame_list_screen.dart';
 import './lens_list_screen.dart';
 import './prescription_screen.dart';
 import './bill_list_screen.dart';
+import './payment_list_screen.dart';
+import './dashboard_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -76,13 +78,9 @@ class MainScreenState extends State<MainScreen> {
       case 'employees':
         return const EmployeeScreen();
       case 'dashboard':
-        return _buildPlaceholderPage('Dashboard', Icons.dashboard_rounded);
+        return const DashboardScreen();
       case 'orders':
         return _buildPlaceholderPage('Orders', Icons.shopping_cart_rounded);
-      case 'inventory':
-        return _buildPlaceholderPage('Inventory', Icons.inventory_2_rounded);
-      case 'reports':
-        return _buildPlaceholderPage('Reports', Icons.analytics_rounded);
       case 'shop':
         return const ShopFormScreen();
       case 'admin_profile':
@@ -95,6 +93,8 @@ class MainScreenState extends State<MainScreen> {
         return const PrescriptionScreen();
       case 'bills':
         return const BillListScreen();
+      case 'payments':
+        return const PaymentListScreen();
       default:
         return const CustomersScreen();
     }

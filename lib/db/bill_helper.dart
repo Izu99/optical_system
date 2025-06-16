@@ -2,9 +2,6 @@ import 'package:sqflite/sqflite.dart';
 import '../models/bill.dart';
 import '../models/bill_item.dart';
 import 'customer_helper.dart';
-import 'frame_helper.dart';
-import 'lens_helper.dart';
-import 'customer_helper.dart';
 
 class BillHelper {
   BillHelper._privateConstructor();

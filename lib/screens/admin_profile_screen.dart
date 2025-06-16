@@ -1,117 +1,71 @@
-// screens/shop_screen.dart
 import 'package:flutter/material.dart';
-import '../models/shop.dart';
-import '../db/shop_helper.dart';
+import 'package:flutter_application_1/screens/dashboard_screen.dart';
 
-class ShopScreen extends StatefulWidget {
-  const ShopScreen({Key? key}) : super(key: key);
+class AdminProfileScreen extends StatefulWidget {
+  const AdminProfileScreen({Key? key}) : super(key: key);
 
   @override
-  State<ShopScreen> createState() => _ShopScreenState();
+  State<AdminProfileScreen> createState() => _AdminProfileScreenState();
 }
 
-class _ShopScreenState extends State<ShopScreen> {
+class _AdminProfileScreenState extends State<AdminProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _shopNameController = TextEditingController();
-  final _ownerNameController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+
   bool _isLoading = false;
-  bool _isUpdating = false;
-  Shop? _currentShop;
 
   @override
   void initState() {
     super.initState();
-    _loadShop();
+    _loadAdmin();
   }
 
-  Future<void> _loadShop() async {
+  // Replace this with your actual admin loading logic
+  Future<void> _loadAdmin() async {
     setState(() => _isLoading = true);
-    try {
-      final shop = await ShopHelper.instance.getShop(1); // Pass id 1
-      if (shop != null) {
-        setState(() {
-          _currentShop = shop;
-          _isUpdating = true;
-          _shopNameController.text = shop.name;
-          _ownerNameController.text = ''; // No ownerName in model
-          _addressController.text = shop.headofficeAddress;
-          _phoneController.text = shop.contactNumber;
-          _emailController.text = shop.email;
-        });
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error loading shop: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
+    // TODO: Load admin data from your DB or auth provider
+    // Example:
+    // final admin = await AdminHelper.instance.getAdmin();
+    // _nameController.text = admin.name;
+    // _emailController.text = admin.email;
+    // _phoneController.text = admin.phone;
+    setState(() => _isLoading = false);
   }
 
-  Future<void> _saveShop() async {
+  // Replace this with your actual admin update logic
+  Future<void> _saveAdmin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    try {
-      final shop = Shop(
-        shopId: _currentShop?.shopId,
-        name: _shopNameController.text.trim(),
-        contactNumber: _phoneController.text.trim(),
-        email: _emailController.text.trim(),
-        headofficeAddress: _addressController.text.trim(),
-      );
-      if (_isUpdating) {
-        await ShopHelper.instance.updateShop(shop);
-        _showSuccessSnackBar('Shop updated successfully!');
-      } else {
-        final id = await ShopHelper.instance.createShop(shop);
-        setState(() {
-          _currentShop = shop.copyWith(shopId: id);
-          _isUpdating = true;
-        });
-        _showSuccessSnackBar('Shop created successfully!');
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error saving shop: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _showSuccessSnackBar(String message) {
+    // TODO: Save admin data to your DB or auth provider
+    // Example:
+    // await AdminHelper.instance.updateAdmin(Admin(
+    //   name: _nameController.text,
+    //   email: _emailController.text,
+    //   phone: _phoneController.text,
+    //   password: _passwordController.text,
+    // ));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
+      const SnackBar(content: Text('Profile updated!'), backgroundColor: Colors.green),
     );
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Update Shop Details'),
+        title: const Text('Admin Profile'),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         centerTitle: true,
       ),
-      body: _isLoading 
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
@@ -120,20 +74,15 @@ class _ShopScreenState extends State<ShopScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header Card
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
                         child: Column(
                           children: [
-                            Icon(
-                              _isUpdating ? Icons.edit : Icons.add_business,
-                              size: 48,
-                              color: theme.colorScheme.primary,
-                            ),
+                            Icon(Icons.person, size: 48, color: theme.colorScheme.primary),
                             const SizedBox(height: 12),
                             Text(
-                              _isUpdating ? 'Update Your Shop' : 'Setup Your Shop',
+                              'Update Your Profile',
                               style: theme.textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.onSurface,
@@ -141,9 +90,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              _isUpdating 
-                                  ? 'Modify your shop information below'
-                                  : 'Enter your shop details to get started',
+                              'Modify your admin information below',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurface.withOpacity(0.7),
                               ),
@@ -153,82 +100,21 @@ class _ShopScreenState extends State<ShopScreen> {
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 24),
-                    
-                    // Form Fields
                     TextFormField(
-                      controller: _shopNameController,
+                      controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Shop Name',
-                        hintText: 'Enter your shop name',
-                        prefixIcon: Icon(Icons.store),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Shop name is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    TextFormField(
-                      controller: _ownerNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Owner Name',
-                        hintText: 'Enter owner name',
+                        labelText: 'Name',
                         prefixIcon: Icon(Icons.person),
                       ),
-                      validator: (value) {
-                        return null; // No ownerName in model, so skip validation
-                      },
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty ? 'Name is required' : null,
                     ),
-                    
                     const SizedBox(height: 16),
-                    
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: const InputDecoration(
-                        labelText: 'Address',
-                        hintText: 'Enter shop address',
-                        prefixIcon: Icon(Icons.location_on),
-                      ),
-                      maxLines: 3,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Address is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    TextFormField(
-                      controller: _phoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        hintText: 'Enter phone number',
-                        prefixIcon: Icon(Icons.phone),
-                      ),
-                      keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Phone number is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
                         labelText: 'Email',
-                        hintText: 'Enter email address',
                         prefixIcon: Icon(Icons.email),
                       ),
                       keyboardType: TextInputType.emailAddress,
@@ -242,12 +128,31 @@ class _ShopScreenState extends State<ShopScreen> {
                         return null;
                       },
                     ),
-                    
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        prefixIcon: Icon(Icons.phone),
+                      ),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty ? 'Phone number is required' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: Icon(Icons.lock),
+                      ),
+                      obscureText: true,
+                      validator: (value) =>
+                          value != null && value.length < 6 ? 'Password must be at least 6 characters' : null,
+                    ),
                     const SizedBox(height: 32),
-                    
-                    // Save Button
                     ElevatedButton(
-                      onPressed: _isLoading ? null : _saveShop,
+                      onPressed: _isLoading ? null : _saveAdmin,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -260,19 +165,14 @@ class _ShopScreenState extends State<ShopScreen> {
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(
-                              _isUpdating ? 'Update Shop' : 'Save Shop',
-                              style: const TextStyle(
+                          : const Text(
+                              'Update Profile',
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                     ),
-                    
-                    if (_isUpdating) ...[
-                      const SizedBox(height: 16),
-                      // Remove createdAt display if not present in Shop model
-                    ],
                   ],
                 ),
               ),
@@ -282,11 +182,24 @@ class _ShopScreenState extends State<ShopScreen> {
 
   @override
   void dispose() {
-    _shopNameController.dispose();
-    _ownerNameController.dispose();
-    _addressController.dispose();
-    _phoneController.dispose();
+    _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
     super.dispose();
+  }
+}
+
+Widget _getPage(String page) {
+  switch (page) {
+    case 'dashboard':
+      return DashboardScreen();
+    case 'admin_profile':
+      return AdminProfileScreen(); // <--- Make sure this is here!
+    // case 'shop':
+    //   return ShopScreen(); // <--- REMOVE or comment this out if not needed
+    // ... other cases ...
+    default:
+      return DashboardScreen();
   }
 }

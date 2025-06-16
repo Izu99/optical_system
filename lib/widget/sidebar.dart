@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../screens/login_register_screen.dart';
 import '../theme.dart';
+import '../screens/dashboard_screen.dart';
+import '../screens/admin_profile_screen.dart';
 
 class Sidebar extends StatelessWidget {
   final String currentPage;
@@ -179,16 +181,6 @@ class Sidebar extends StatelessWidget {
         'page': 'customers',
       },
       {
-        'icon': Icons.inventory_2_rounded,
-        'title': 'Inventory',
-        'page': 'inventory',
-      },
-      {
-        'icon': Icons.analytics_rounded,
-        'title': 'Reports',
-        'page': 'reports',
-      },
-      {
         'icon': Icons.account_balance_rounded,
         'title': 'Branches',
         'page': 'branches',
@@ -217,6 +209,11 @@ class Sidebar extends StatelessWidget {
         'icon': Icons.request_quote_rounded,
         'title': 'Bills',
         'page': 'bills',
+      },
+      {
+        'icon': Icons.payments_rounded,
+        'title': 'Payments',
+        'page': 'payments',
       },
     ];
   }
@@ -472,4 +469,15 @@ class Sidebar extends StatelessWidget {
       ),
     );
   }
+
+  Widget _getPage(String page) {
+  switch (page) {
+    case 'dashboard':
+      return DashboardScreen();
+    case 'admin_profile':
+      return const AdminProfileScreen();
+    default:
+      return const DashboardScreen();
+  }
+}
 }

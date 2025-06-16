@@ -59,6 +59,20 @@ class DatabaseHelper {
         FOREIGN KEY (billing_id) REFERENCES billings(billing_id) ON DELETE CASCADE
       )
     ''');
+    await db.execute('''
+      CREATE TABLE payments (
+        payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        billing_id INTEGER NOT NULL,
+        advance_paid REAL NOT NULL,
+        balance_amount REAL NOT NULL,
+        total_amount REAL NOT NULL,
+        discount REAL NOT NULL,
+        fitting_charges REAL NOT NULL,
+        grand_total REAL NOT NULL,
+        payment_type TEXT NOT NULL,
+        FOREIGN KEY (billing_id) REFERENCES billings(billing_id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   // Customer CRUD operations

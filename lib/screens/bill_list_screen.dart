@@ -22,6 +22,8 @@ class _BillListScreenState extends State<BillListScreen> {
   int _currentPage = 0;
   static const int _pageSize = 10;
 
+  final ScrollController _horizontalScrollController = ScrollController();
+
   int get _totalPages => (_filteredBills.length / _pageSize).ceil();
 
   List<Bill> get _currentPageBills {
@@ -161,6 +163,7 @@ class _BillListScreenState extends State<BillListScreen> {
       ),
     );
     if (result != null) {
+      // No need to set result.invoiceDate or result.deliveryDate here, as Bill is immutable.
       await _loadData();
     }
   }
@@ -258,67 +261,84 @@ class _BillListScreenState extends State<BillListScreen> {
                               ],
                             ),
                           )
-                        : SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              columns: const [
-                                DataColumn(label: Text('#')),
-                                DataColumn(label: Text('Customer')),
-                                DataColumn(label: Text('Sales Person')),
-                                DataColumn(label: Text('Invoice Date')),
-                                DataColumn(label: Text('Delivery Date')),
-                                DataColumn(label: Text('Invoice Time')),
-                                DataColumn(label: Text('Delivery Time')),
-                                DataColumn(label: Text('Bill Items')),
-                                DataColumn(label: Text('Actions')),
-                              ],
-                              rows: List<DataRow>.generate(_currentPageBills.length, (index) {
-                                final bill = _currentPageBills[index];
-                                final serial = _currentPage * _pageSize + index + 1;
-                                return DataRow(
-                                  onSelectChanged: (_) => _showBillDialog(bill: bill),
-                                  cells: [
-                                    DataCell(Text(serial.toString())),
-                                    DataCell(Text(_getCustomerName(bill.customerId))),
-                                    DataCell(Text(bill.salesPerson)),
-                                    DataCell(Text(bill.invoiceDate?.toLocal().toString().split(' ')[0] ?? '-')),
-                                    DataCell(Text(bill.deliveryDate?.toLocal().toString().split(' ')[0] ?? '-')),
-                                    DataCell(Text(bill.invoiceTime ?? '-')),
-                                    DataCell(Text(bill.deliveryTime ?? '-')),
-                                    DataCell(
-                                      FutureBuilder<List<BillItem>>(
-                                        future: BillHelper.instance.getBillItems(bill.billingId!),
-                                        builder: (context, snapshot) {
-                                          final items = snapshot.data ?? [];
-                                          if (items.isEmpty) return const Text('-');
-                                          // Summarize items
-                                          final summary = items.map((item) {
-                                            final frame = item.frameId != null ? 'Frame x${item.frameQuantity ?? 1}' : '';
-                                            final lens = item.lensId != null ? 'Lens x${item.lensQuantity ?? 1}' : '';
-                                            return [frame, lens].where((s) => s.isNotEmpty).join(', ');
-                                          }).join(' | ');
-                                          return Text(summary, overflow: TextOverflow.ellipsis);
-                                        },
+                        : Scrollbar(
+                            controller: _horizontalScrollController,
+                            thumbVisibility: true,
+                            interactive: true,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              controller: _horizontalScrollController,
+                              child: DataTable(
+                                showCheckboxColumn: false,
+                                columns: const [
+                                  DataColumn(label: Text('#')),
+                                  DataColumn(label: Text('Customer')),
+                                  DataColumn(label: Text('Sales Person')),
+                                  DataColumn(label: Text('Invoice Date')),
+                                  DataColumn(label: Text('Delivery Date')),
+                                  DataColumn(label: Text('Invoice Time')),
+                                  DataColumn(label: Text('Delivery Time')),
+                                  DataColumn(label: Text('Bill Items')),
+                                  DataColumn(label: Text('Actions')),
+                                ],
+                                rows: List<DataRow>.generate(_currentPageBills.length, (index) {
+                                  final bill = _currentPageBills[index];
+                                  final serial = _currentPage * _pageSize + index + 1;
+                                  return DataRow(
+                                    onSelectChanged: (_) => _showBillDialog(bill: bill),
+                                    cells: [
+                                      DataCell(Text(serial.toString())),
+                                      DataCell(Text(_getCustomerName(bill.customerId))),
+                                      DataCell(Text(bill.salesPerson)),
+                                      DataCell(Text(
+                                        bill.invoiceDate != null
+                                          ? "${bill.invoiceDate!.day.toString().padLeft(2, '0')}-${bill.invoiceDate!.month.toString().padLeft(2, '0')}-${bill.invoiceDate!.year}"
+                                          : '-',
+                                        overflow: TextOverflow.ellipsis,
+                                      )),
+                                      DataCell(Text(
+                                        bill.deliveryDate != null
+                                          ? "${bill.deliveryDate!.day.toString().padLeft(2, '0')}-${bill.deliveryDate!.month.toString().padLeft(2, '0')}-${bill.deliveryDate!.year}"
+                                          : '-',
+                                        overflow: TextOverflow.ellipsis,
+                                      )),
+                                      DataCell(Text(bill.invoiceTime ?? '-', overflow: TextOverflow.ellipsis)),
+                                      DataCell(Text(bill.deliveryTime ?? '-', overflow: TextOverflow.ellipsis)),
+                                      DataCell(
+                                        FutureBuilder<List<BillItem>>(
+                                          future: BillHelper.instance.getBillItems(bill.billingId!),
+                                          builder: (context, snapshot) {
+                                            final items = snapshot.data ?? [];
+                                            if (items.isEmpty) return const Text('-');
+                                            // Summarize items
+                                            final summary = items.map((item) {
+                                              final frame = item.frameId != null ? 'Frame x${item.frameQuantity ?? 1}' : '';
+                                              final lens = item.lensId != null ? 'Lens x${item.lensQuantity ?? 1}' : '';
+                                              return [frame, lens].where((s) => s.isNotEmpty).join(', ');
+                                            }).join(' | ');
+                                            return Text(summary, overflow: TextOverflow.ellipsis);
+                                          },
+                                        ),
                                       ),
-                                    ),
-                                    DataCell(Row(
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.edit_rounded),
-                                          tooltip: 'Edit',
-                                          onPressed: () => _showBillDialog(bill: bill),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete_rounded),
-                                          color: Colors.red,
-                                          tooltip: 'Delete',
-                                          onPressed: () => _deleteBill(bill),
-                                        ),
-                                      ],
-                                    )),
-                                  ],
-                                );
-                              }),
+                                      DataCell(Row(
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit_rounded),
+                                            tooltip: 'Edit',
+                                            onPressed: () => _showBillDialog(bill: bill),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete_rounded),
+                                            color: Colors.red,
+                                            tooltip: 'Delete',
+                                            onPressed: () => _deleteBill(bill),
+                                          ),
+                                        ],
+                                      )),
+                                    ],
+                                  );
+                                }),
+                              ),
                             ),
                           ),
               ),
