@@ -5,6 +5,7 @@ import '../models/bill_item.dart';
 import '../db/bill_helper.dart';
 import '../db/customer_helper.dart';
 import '../widget/create_bill_dialog.dart';
+import '../widget/pagination.dart';
 
 class BillListScreen extends StatefulWidget {
   const BillListScreen({super.key});
@@ -76,60 +77,6 @@ class _BillListScreenState extends State<BillListScreen> {
   String _getCustomerName(int customerId) {
     final customer = _customers.firstWhere((c) => c.id == customerId, orElse: () => Customer(id: 0, name: 'Unknown', email: '', phoneNumber: '', address: '', createdAt: DateTime.now()));
     return customer.name;
-  }
-
-  List<Widget> _buildPageNumbers() {
-    List<Widget> widgets = [];
-    if (_totalPages <= 1) return widgets;
-    int start = (_currentPage - 2).clamp(0, _totalPages - 1);
-    int end = (_currentPage + 2).clamp(0, _totalPages - 1);
-    if (start > 0) {
-      widgets.add(_pageButton(1, 0));
-      if (start > 1) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-    }
-    for (int i = start; i <= end; i++) {
-      widgets.add(_pageButton(i + 1, i));
-    }
-    if (end < _totalPages - 1) {
-      if (end < _totalPages - 2) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-      widgets.add(_pageButton(_totalPages, _totalPages - 1));
-    }
-    return widgets;
-  }
-
-  Widget _pageButton(int label, int pageIndex) {
-    final isSelected = _currentPage == pageIndex;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.15) : null,
-          side: BorderSide(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).dividerColor,
-          ),
-          minimumSize: const Size(36, 36),
-          padding: EdgeInsets.zero,
-        ),
-        onPressed: isSelected ? null : () => setState(() => _currentPage = pageIndex),
-        child: Text(
-          label.toString(),
-          style: TextStyle(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
   }
 
   // Helper to show the bill dialog for add/edit
@@ -261,117 +208,214 @@ class _BillListScreenState extends State<BillListScreen> {
                               ],
                             ),
                           )
-                        : Scrollbar(
-                            controller: _horizontalScrollController,
-                            thumbVisibility: true,
-                            interactive: true,
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              controller: _horizontalScrollController,
-                              child: DataTable(
-                                showCheckboxColumn: false,
-                                columns: const [
-                                  DataColumn(label: Text('#')),
-                                  DataColumn(label: Text('Customer')),
-                                  DataColumn(label: Text('Sales Person')),
-                                  DataColumn(label: Text('Invoice Date')),
-                                  DataColumn(label: Text('Delivery Date')),
-                                  DataColumn(label: Text('Invoice Time')),
-                                  DataColumn(label: Text('Delivery Time')),
-                                  DataColumn(label: Text('Bill Items')),
-                                  DataColumn(label: Text('Actions')),
-                                ],
-                                rows: List<DataRow>.generate(_currentPageBills.length, (index) {
-                                  final bill = _currentPageBills[index];
-                                  final serial = _currentPage * _pageSize + index + 1;
-                                  return DataRow(
-                                    onSelectChanged: (_) => _showBillDialog(bill: bill),
-                                    cells: [
-                                      DataCell(Text(serial.toString())),
-                                      DataCell(Text(_getCustomerName(bill.customerId))),
-                                      DataCell(Text(bill.salesPerson)),
-                                      DataCell(Text(
-                                        bill.invoiceDate != null
-                                          ? "${bill.invoiceDate!.day.toString().padLeft(2, '0')}-${bill.invoiceDate!.month.toString().padLeft(2, '0')}-${bill.invoiceDate!.year}"
-                                          : '-',
-                                        overflow: TextOverflow.ellipsis,
-                                      )),
-                                      DataCell(Text(
-                                        bill.deliveryDate != null
-                                          ? "${bill.deliveryDate!.day.toString().padLeft(2, '0')}-${bill.deliveryDate!.month.toString().padLeft(2, '0')}-${bill.deliveryDate!.year}"
-                                          : '-',
-                                        overflow: TextOverflow.ellipsis,
-                                      )),
-                                      DataCell(Text(bill.invoiceTime ?? '-', overflow: TextOverflow.ellipsis)),
-                                      DataCell(Text(bill.deliveryTime ?? '-', overflow: TextOverflow.ellipsis)),
-                                      DataCell(
-                                        FutureBuilder<List<BillItem>>(
-                                          future: BillHelper.instance.getBillItems(bill.billingId!),
-                                          builder: (context, snapshot) {
-                                            final items = snapshot.data ?? [];
-                                            if (items.isEmpty) return const Text('-');
-                                            // Summarize items
-                                            final summary = items.map((item) {
-                                              final frame = item.frameId != null ? 'Frame x${item.frameQuantity ?? 1}' : '';
-                                              final lens = item.lensId != null ? 'Lens x${item.lensQuantity ?? 1}' : '';
-                                              return [frame, lens].where((s) => s.isNotEmpty).join(', ');
-                                            }).join(' | ');
-                                            return Text(summary, overflow: TextOverflow.ellipsis);
-                                          },
+                        : Column(
+                            children: [
+                              // Table Header: add more padding to each column for readability
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(12),
+                                    topRight: Radius.circular(12),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 40,
+                                      child: Text(
+                                        '#',
+                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text('Customer', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text('Sales Person', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text('Invoice Date', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text('Delivery Date', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text('Invoice Time', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text('Delivery Time', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text('Bill Items', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 100), // Actions column
+                                  ],
+                                ),
+                              ),
+                              // Table Body
+                              Expanded(
+                                child: ListView.builder(
+                                  itemCount: _currentPageBills.length,
+                                  itemBuilder: (context, index) {
+                                    final bill = _currentPageBills[index];
+                                    final serial = _currentPage * _pageSize + index + 1;
+                                    return GestureDetector(
+                                      onTap: () => _showBillDialog(bill: bill),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 40,
+                                              child: Text(
+                                                serial.toString(),
+                                                textAlign: TextAlign.center,
+                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                _getCustomerName(bill.customerId),
+                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                bill.salesPerson,
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                bill.invoiceDate != null
+                                                    ? "${bill.invoiceDate!.day.toString().padLeft(2, '0')}-${bill.invoiceDate!.month.toString().padLeft(2, '0')}-${bill.invoiceDate!.year}"
+                                                    : '-',
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                bill.deliveryDate != null
+                                                    ? "${bill.deliveryDate!.day.toString().padLeft(2, '0')}-${bill.deliveryDate!.month.toString().padLeft(2, '0')}-${bill.deliveryDate!.year}"
+                                                    : '-',
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                bill.invoiceTime ?? '-',
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                bill.deliveryTime ?? '-',
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: FutureBuilder<List<BillItem>>(
+                                                future: BillHelper.instance.getBillItems(bill.billingId!),
+                                                builder: (context, snapshot) {
+                                                  final items = snapshot.data ?? [];
+                                                  if (items.isEmpty) return const Text('-');
+                                                  final summary = items.map((item) {
+                                                    final frame = item.frameId != null ? 'Frame x${item.frameQuantity ?? 1}' : '';
+                                                    final lens = item.lensId != null ? 'Lens x${item.lensQuantity ?? 1}' : '';
+                                                    return [frame, lens].where((s) => s.isNotEmpty).join(', ');
+                                                  }).join(' | ');
+                                                  return Text(summary, overflow: TextOverflow.ellipsis);
+                                                },
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              width: 100,
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.end,
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit_rounded, size: 18),
+                                                    tooltip: 'Edit',
+                                                    onPressed: () => _showBillDialog(bill: bill),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete_rounded, size: 18),
+                                                    color: Colors.red,
+                                                    tooltip: 'Delete',
+                                                    onPressed: () => _deleteBill(bill),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      DataCell(Row(
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit_rounded),
-                                            tooltip: 'Edit',
-                                            onPressed: () => _showBillDialog(bill: bill),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete_rounded),
-                                            color: Colors.red,
-                                            tooltip: 'Delete',
-                                            onPressed: () => _deleteBill(bill),
-                                          ),
-                                        ],
-                                      )),
-                                    ],
-                                  );
-                                }),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
+                              // Pagination Controls
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: SmartPaginationControls(
+                                  currentPage: _currentPage,
+                                  totalPages: _totalPages,
+                                  totalItems: _filteredBills.length,
+                                  itemsPerPage: _pageSize,
+                                  onFirst: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
+                                  onPrevious: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                                  onNext: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
+                                  onLast: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage = _totalPages - 1) : null,
+                                  onPageSelect: (page) => setState(() => _currentPage = page),
+                                  showItemsInfo: true,
+                                ),
+                              ),
+                            ],
                           ),
               ),
-            ),
-          ),
-          // Pagination Controls
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.first_page_rounded),
-                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
-                  tooltip: 'First Page',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                  tooltip: 'Previous Page',
-                ),
-                ..._buildPageNumbers(),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                  tooltip: 'Next Page',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.last_page_rounded),
-                  onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _totalPages > 0 ? _currentPage = _totalPages - 1 : 0) : null,
-                  tooltip: 'Last Page',
-                ),
-              ],
             ),
           ),
         ],

@@ -197,7 +197,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.15),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.15),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
@@ -352,9 +352,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
                   maxY: (_weeklySales.reduce(max) * 1.2).clamp(100, double.infinity),
-                  barTouchData: BarTouchData(enabled: true),
+                  barTouchData: const BarTouchData(enabled: true),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
+                    leftTitles: const AxisTitles(
                       sideTitles: SideTitles(showTitles: true, reservedSize: 40),
                     ),
                     bottomTitles: AxisTitles(
@@ -374,8 +374,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         interval: 1,
                       ),
                     ),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
                   borderData: FlBorderData(show: false),
                   barGroups: List.generate(
@@ -429,13 +429,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       isCurved: true,
                       color: Colors.blue,
                       barWidth: 3,
-                      dotData: FlDotData(show: false),
+                      dotData: const FlDotData(show: false),
                     ),
                   ],
                   minY: 0,
                   maxY: (_monthlySales.reduce(max) * 1.2).clamp(100, double.infinity),
                   titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
+                    leftTitles: const AxisTitles(
                       sideTitles: SideTitles(showTitles: true, reservedSize: 40),
                     ),
                     bottomTitles: AxisTitles(
@@ -455,11 +455,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         interval: 1,
                       ),
                     ),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
                   borderData: FlBorderData(show: false),
-                  gridData: FlGridData(show: true),
+                  gridData: const FlGridData(show: true),
                 ),
               ),
             ),

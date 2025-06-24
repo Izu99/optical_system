@@ -1,12 +1,16 @@
 class Employee {
   final int? userId;
-  final String role; // 'manager' or 'reception'
+  final String role; // 'manager', 'sales-person', or 'fitter'
   final int branchId;
   final String email;
   final String? name;
   final String? phone;
   final String? address;
   final String? imagePath;
+
+  static const String roleFitter = 'fitter';
+  static const String roleSalesPerson = 'sales-person';
+  static const String roleManager = 'manager';
 
   Employee({
     this.userId,
@@ -43,5 +47,18 @@ class Employee {
       address: map['address'],
       imagePath: map['image_path'],
     );
+  }
+
+  static String displayRole(String role) {
+    switch (role) {
+      case roleManager:
+        return 'Manager';
+      case roleSalesPerson:
+        return 'S-P';
+      case roleFitter:
+        return 'Fitter';
+      default:
+        return role;
+    }
   }
 }

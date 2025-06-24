@@ -92,9 +92,9 @@ Future<void> insertSampleData() async {
   // --- EMPLOYEE ---
   final employees = [
     Employee(role: 'manager', branchId: branchIds[0], email: 'nimal@colombo.lk', name: 'Nimal Perera', phone: '0771234567', address: 'Colombo 01'),
-    Employee(role: 'reception', branchId: branchIds[1], email: 'kamal@kandy.lk', name: 'Kamal Silva', phone: '0772345678', address: 'Kandy'),
+    Employee(role: 'sales-person', branchId: branchIds[1], email: 'kamal@kandy.lk', name: 'Kamal Silva', phone: '0772345678', address: 'Kandy'),
     Employee(role: 'manager', branchId: branchIds[2], email: 'saman@galle.lk', name: 'Saman Fernando', phone: '0773456789', address: 'Galle'),
-    Employee(role: 'reception', branchId: branchIds[3], email: 'rani@jaffna.lk', name: 'Rani Nadarajah', phone: '0774567890', address: 'Jaffna'),
+    Employee(role: 'sales-person', branchId: branchIds[3], email: 'rani@jaffna.lk', name: 'Rani Nadarajah', phone: '0774567890', address: 'Jaffna'),
     Employee(role: 'manager', branchId: branchIds[4], email: 'sunil@matara.lk', name: 'Sunil Jayasinghe', phone: '0775678901', address: 'Matara'),
   ];
   for (final emp in employees) {

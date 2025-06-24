@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/payment.dart';
 import '../db/payment_helper.dart';
 import '../widget/create_payment_dialog.dart';
+import '../widget/pagination.dart';
 
 class PaymentListScreen extends StatefulWidget {
   const PaymentListScreen({super.key});
@@ -14,6 +15,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
   List<Payment> _payments = [];
   List<Payment> _filteredPayments = [];
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _horizontalScrollController = ScrollController();
   bool _isLoading = true;
   int _currentPage = 0;
   static const int _pageSize = 10;
@@ -39,6 +41,7 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 
@@ -108,60 +111,6 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
     }
   }
 
-  List<Widget> _buildPageNumbers() {
-    List<Widget> widgets = [];
-    if (_totalPages <= 1) return widgets;
-    int start = (_currentPage - 2).clamp(0, _totalPages - 1);
-    int end = (_currentPage + 2).clamp(0, _totalPages - 1);
-    if (start > 0) {
-      widgets.add(_pageButton(1, 0));
-      if (start > 1) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-    }
-    for (int i = start; i <= end; i++) {
-      widgets.add(_pageButton(i + 1, i));
-    }
-    if (end < _totalPages - 1) {
-      if (end < _totalPages - 2) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-      widgets.add(_pageButton(_totalPages, _totalPages - 1));
-    }
-    return widgets;
-  }
-
-  Widget _pageButton(int label, int pageIndex) {
-    final isSelected = _currentPage == pageIndex;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.15) : null,
-          side: BorderSide(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).dividerColor,
-          ),
-          minimumSize: const Size(36, 36),
-          padding: EdgeInsets.zero,
-        ),
-        onPressed: isSelected ? null : () => setState(() => _currentPage = pageIndex),
-        child: Text(
-          label.toString(),
-          style: TextStyle(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -228,8 +177,9 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
                         : Scrollbar(
                             thumbVisibility: true,
                             trackVisibility: true,
-                            controller: ScrollController(),
+                            controller: _horizontalScrollController,
                             child: SingleChildScrollView(
+                              controller: _horizontalScrollController, // ADD THIS LINE
                               scrollDirection: Axis.horizontal,
                               child: DataTable(
                                 showCheckboxColumn: false,
@@ -285,32 +235,18 @@ class _PaymentListScreenState extends State<PaymentListScreen> {
           ),
           // Pagination Controls
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.first_page_rounded),
-                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
-                  tooltip: 'First Page',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                  tooltip: 'Previous Page',
-                ),
-                ..._buildPageNumbers(),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                  tooltip: 'Next Page',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.last_page_rounded),
-                  onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _totalPages > 0 ? _currentPage = _totalPages - 1 : 0) : null,
-                  tooltip: 'Last Page',
-                ),
-              ],
+            padding: const EdgeInsets.all(16.0),
+            child: SmartPaginationControls(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              totalItems: _filteredPayments.length,
+              itemsPerPage: _pageSize,
+              onFirst: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
+              onPrevious: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+              onNext: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
+              onLast: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage = _totalPages - 1) : null,
+              onPageSelect: (page) => setState(() => _currentPage = page),
+              showItemsInfo: true,
             ),
           ),
         ],

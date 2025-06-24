@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 class AppRoleColors extends ThemeExtension<AppRoleColors> {
   final Color managerBg;
   final Color managerText;
-  final Color receptionBg;
-  final Color receptionText;
+  final Color salesPersonBg;
+  final Color salesPersonText;
+  final Color fitterBg;
+  final Color fitterText;
   final BorderRadius badgeRadius;
 
   const AppRoleColors({
     required this.managerBg,
     required this.managerText,
-    required this.receptionBg,
-    required this.receptionText,
+    required this.salesPersonBg,
+    required this.salesPersonText,
+    required this.fitterBg,
+    required this.fitterText,
     this.badgeRadius = const BorderRadius.all(Radius.circular(8)),
   });
 
@@ -19,15 +23,19 @@ class AppRoleColors extends ThemeExtension<AppRoleColors> {
   AppRoleColors copyWith({
     Color? managerBg,
     Color? managerText,
-    Color? receptionBg,
-    Color? receptionText,
+    Color? salesPersonBg,
+    Color? salesPersonText,
+    Color? fitterBg,
+    Color? fitterText,
     BorderRadius? badgeRadius,
   }) {
     return AppRoleColors(
       managerBg: managerBg ?? this.managerBg,
       managerText: managerText ?? this.managerText,
-      receptionBg: receptionBg ?? this.receptionBg,
-      receptionText: receptionText ?? this.receptionText,
+      salesPersonBg: salesPersonBg ?? this.salesPersonBg,
+      salesPersonText: salesPersonText ?? this.salesPersonText,
+      fitterBg: fitterBg ?? this.fitterBg,
+      fitterText: fitterText ?? this.fitterText,
       badgeRadius: badgeRadius ?? this.badgeRadius,
     );
   }
@@ -38,8 +46,10 @@ class AppRoleColors extends ThemeExtension<AppRoleColors> {
     return AppRoleColors(
       managerBg: Color.lerp(managerBg, other.managerBg, t) ?? managerBg,
       managerText: Color.lerp(managerText, other.managerText, t) ?? managerText,
-      receptionBg: Color.lerp(receptionBg, other.receptionBg, t) ?? receptionBg,
-      receptionText: Color.lerp(receptionText, other.receptionText, t) ?? receptionText,
+      salesPersonBg: Color.lerp(salesPersonBg, other.salesPersonBg, t) ?? salesPersonBg,
+      salesPersonText: Color.lerp(salesPersonText, other.salesPersonText, t) ?? salesPersonText,
+      fitterBg: Color.lerp(fitterBg, other.fitterBg, t) ?? fitterBg,
+      fitterText: Color.lerp(fitterText, other.fitterText, t) ?? fitterText,
       badgeRadius: BorderRadius.lerp(badgeRadius, other.badgeRadius, t) ?? badgeRadius,
     );
   }
@@ -230,8 +240,10 @@ class ThemeProvider extends ChangeNotifier {
       AppRoleColors(
         managerBg: Color(0xFFDCFCE7),
         managerText: Color(0xFF166534),
-        receptionBg: Color(0xFFFEF3C7),
-        receptionText: Color(0xFF92400E),
+        salesPersonBg: Color(0xFFDBEAFE),
+        salesPersonText: Color(0xFF1E40AF),
+        fitterBg: Color(0xFFE0E7FF),
+        fitterText: Color(0xFF3730A3),
       ),
       ModernUIColors(
         glassBg: Color(0xF0FFFFFF),
@@ -328,8 +340,10 @@ class ThemeProvider extends ChangeNotifier {
       AppRoleColors(
         managerBg: Color(0xFF1F4A2C),
         managerText: Color(0xFF7EE3A3),
-        receptionBg: Color(0xFF4A3A1A),
-        receptionText: Color(0xFFFFD768),
+        salesPersonBg: Color(0xFF1E3A8A),
+        salesPersonText: Color(0xFF93C5FD),
+        fitterBg: Color(0xFF312E81),
+        fitterText: Color(0xFFA5B4FC),
       ),
       ModernUIColors(
         glassBg: Color(0xD91A1D23),

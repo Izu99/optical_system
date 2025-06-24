@@ -473,7 +473,7 @@ class Sidebar extends StatelessWidget {
   Widget _getPage(String page) {
   switch (page) {
     case 'dashboard':
-      return DashboardScreen();
+      return const DashboardScreen();
     case 'admin_profile':
       return const AdminProfileScreen();
     default:

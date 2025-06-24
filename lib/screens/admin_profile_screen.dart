@@ -193,13 +193,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 Widget _getPage(String page) {
   switch (page) {
     case 'dashboard':
-      return DashboardScreen();
+      return const DashboardScreen();
     case 'admin_profile':
-      return AdminProfileScreen(); // <--- Make sure this is here!
+      return const AdminProfileScreen(); // <--- Make sure this is here!
     // case 'shop':
     //   return ShopScreen(); // <--- REMOVE or comment this out if not needed
     // ... other cases ...
     default:
-      return DashboardScreen();
+      return const DashboardScreen();
   }
 }

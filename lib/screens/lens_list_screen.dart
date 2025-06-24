@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../db/lens_helper.dart';
 import '../models/lens.dart';
+import '../widget/pagination.dart'; // Import the pagination widget
 
 class LensListScreen extends StatefulWidget {
   final int branchId;
@@ -12,28 +13,81 @@ class LensListScreen extends StatefulWidget {
 }
 
 class _LensListScreenState extends State<LensListScreen> {
-  late Future<List<Lens>> _lensesFuture;
+  List<Lens> _lenses = [];
+  List<Lens> _filteredLenses = [];
+  final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = true;
+  int _currentPage = 0;
+  static const int _pageSize = 10;
+
+  int get _totalPages => (_filteredLenses.length / _pageSize).ceil();
+
+  List<Lens> get _currentPageLenses {
+    final start = _currentPage * _pageSize;
+    final end = (_currentPage + 1) * _pageSize;
+    return _filteredLenses.sublist(
+      start,
+      end > _filteredLenses.length ? _filteredLenses.length : end,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    _lensesFuture = _loadLenses();
+    _loadLenses();
+    _searchController.addListener(_filterLenses);
   }
 
-  Future<List<Lens>> _loadLenses() async {
-    final all = await LensHelper.instance.getAllLenses();
-    return all.where((l) => l.branchId == widget.branchId && l.shopId == widget.shopId).toList();
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  void _refresh() {
+  Future<void> _loadLenses() async {
     setState(() {
-      _lensesFuture = _loadLenses();
+      _isLoading = true;
+    });
+
+    try {
+      final all = await LensHelper.instance.getAllLenses();
+      final lenses = all.where((l) => l.branchId == widget.branchId && l.shopId == widget.shopId).toList();
+      setState(() {
+        _lenses = lenses;
+        _filteredLenses = lenses;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading lenses: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _filterLenses() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredLenses = _lenses.where((lens) {
+        return lens.power.toLowerCase().contains(query) ||
+            lens.coating.toLowerCase().contains(query) ||
+            lens.category.toLowerCase().contains(query);
+      }).toList();
+      _currentPage = 0; // Reset to first page on search
     });
   }
 
   Future<void> _showCreateOrEditDialog({Lens? lens}) async {
     final result = await showDialog<Lens>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => _CreateLensDialog(
         lens: lens,
         isEdit: lens != null,
@@ -47,171 +101,344 @@ class _LensListScreenState extends State<LensListScreen> {
       } else {
         await LensHelper.instance.updateLens(result);
       }
-      _refresh();
+      await _loadLenses();
     }
+  }
+
+  Future<void> _deleteLens(Lens lens) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Lens'),
+        content: Text('Are you sure you want to delete this lens (${lens.power} ${lens.coating})?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && lens.lensId != null) {
+      try {
+        await LensHelper.instance.deleteLens(lens.lensId!);
+        await _loadLenses();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Lens deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting lens: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _onPageChanged(int pageIndex) {
+    setState(() {
+      _currentPage = pageIndex;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            Row(
+      body: Column(
+        children: [
+          Expanded(
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    'Lenses',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                // Search Bar and Header
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: 'Search lenses',
+                            prefixIcon: Icon(Icons.search_rounded),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: () => _showCreateOrEditDialog(),
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Add Lens'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: () => _showCreateOrEditDialog(),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add Lens'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: FutureBuilder<List<Lens>>(
-                future: _lensesFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: \\${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              gradient: LinearGradient(
-                                colors: [
-                                  Theme.of(context).colorScheme.primary,
-                                  Theme.of(context).colorScheme.secondary,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: Icon(Icons.remove_red_eye_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 32),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No lenses yet',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Click the Add button to add your first lens',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  final lenses = snapshot.data!;
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final table = SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          showCheckboxColumn: false,
-                          columns: const [
-                            DataColumn(label: Text('Power')),
-                            DataColumn(label: Text('Coating')),
-                            DataColumn(label: Text('Category')),
-                            DataColumn(label: Text('Cost')),
-                            DataColumn(label: Text('Stock')),
-                            DataColumn(label: Text('Selling Price')),
-                            DataColumn(label: Text('Actions')),
-                          ],
-                          rows: lenses.map((lens) {
-                            return DataRow(
-                              onSelectChanged: (_) => _showCreateOrEditDialog(lens: lens),
-                              cells: [
-                                DataCell(Text(lens.power)),
-                                DataCell(Text(lens.coating)),
-                                DataCell(Text(lens.category)),
-                                DataCell(Text(lens.cost.toString())),
-                                DataCell(Text(lens.stock.toString())),
-                                DataCell(Text(lens.sellingPrice.toString())),
-                                DataCell(Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                // Lenses Table
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Card(
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _filteredLenses.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.remove_red_eye_rounded,
+                                        size: 64,
+                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        _lenses.isEmpty ? 'No lenses yet' : 'No matching lenses',
+                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _lenses.isEmpty 
+                                            ? 'Click the Add Lens button to add your first lens'
+                                            : 'Try adjusting your search terms',
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Column(
                                   children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_rounded),
-                                      onPressed: () => _showCreateOrEditDialog(lens: lens),
-                                      tooltip: 'Edit',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_rounded),
-                                      color: Colors.red,
-                                      tooltip: 'Delete',
-                                      onPressed: () async {
-                                        final confirm = await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text('Delete Lens'),
-                                            content: const Text('Are you sure you want to delete this lens?'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.of(context).pop(false),
-                                                child: const Text('Cancel'),
+                                    // Table Header
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(12),
+                                          topRight: Radius.circular(12),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 40,
+                                            child: Text(
+                                              '#',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
                                               ),
-                                              TextButton(
-                                                onPressed: () => Navigator.of(context).pop(true),
-                                                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
-                                                child: const Text('Delete'),
-                                              ),
-                                            ],
+                                              textAlign: TextAlign.center,
+                                            ),
                                           ),
-                                        );
-                                        if (confirm == true && lens.lensId != null) {
-                                          await LensHelper.instance.deleteLens(lens.lensId!);
-                                          _refresh();
-                                          if (mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Lens deleted'), backgroundColor: Colors.red),
-                                            );
-                                          }
-                                        }
-                                      },
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              'Power',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              'Coating',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              'Category',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              'Cost',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              'Stock',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 1,
+                                            child: Text(
+                                              'Selling Price',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 100), // Actions column
+                                        ],
+                                      ),
+                                    ),
+                                    // Table Body
+                                    Expanded(
+                                      child: ListView.builder(
+                                        itemCount: _currentPageLenses.length,
+                                        itemBuilder: (context, index) {
+                                          final lens = _currentPageLenses[index];
+                                          final serial = _currentPage * _pageSize + index + 1;
+                                          return Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                                ),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                SizedBox(
+                                                  width: 40,
+                                                  child: Text(
+                                                    serial.toString(),
+                                                    textAlign: TextAlign.center,
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: Text(
+                                                    lens.power,
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: Text(
+                                                    lens.coating,
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: Text(
+                                                    lens.category,
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: Text(
+                                                    lens.cost.toString(),
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: Text(
+                                                    lens.stock.toString(),
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: Text(
+                                                    lens.sellingPrice.toString(),
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: 100,
+                                                  child: Row(
+                                                    mainAxisAlignment: MainAxisAlignment.end,
+                                                    children: [
+                                                      IconButton(
+                                                        onPressed: () {
+                                                          _showCreateOrEditDialog(lens: lens);
+                                                        },
+                                                        icon: const Icon(Icons.edit_rounded),
+                                                        iconSize: 18,
+                                                        tooltip: 'Edit',
+                                                      ),
+                                                      IconButton(
+                                                        onPressed: () => _deleteLens(lens),
+                                                        icon: const Icon(Icons.delete_rounded),
+                                                        iconSize: 18,
+                                                        color: Colors.red,
+                                                        tooltip: 'Delete',
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    // Pagination Controls
+                                    Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: SmartPaginationControls(
+                                        currentPage: _currentPage,
+                                        totalPages: _totalPages,
+                                        totalItems: _filteredLenses.length,
+                                        itemsPerPage: _pageSize,
+                                        onFirst: _currentPage > 0 ? () => _onPageChanged(0) : null,
+                                        onPrevious: _currentPage > 0 ? () => _onPageChanged(_currentPage - 1) : null,
+                                        onNext: _currentPage < _totalPages - 1 ? () => _onPageChanged(_currentPage + 1) : null,
+                                        onLast: _currentPage < _totalPages - 1 ? () => _onPageChanged(_totalPages - 1) : null,
+                                        onPageSelect: _onPageChanged,
+                                        showItemsInfo: true,
+                                      ),
                                     ),
                                   ],
-                                )),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      );
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                          borderRadius: const BorderRadius.all(Radius.circular(12)),
-                        ),
-                        child: table,
-                      );
-                    },
-                  );
-                },
-              ),
+                                ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

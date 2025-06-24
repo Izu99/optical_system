@@ -3,6 +3,7 @@ import '../models/prescription.dart';
 import '../models/customer.dart';
 import '../db/prescription_helper.dart';
 import '../db/customer_helper.dart';
+import '../widget/pagination.dart';
 
 class PrescriptionScreen extends StatefulWidget {
   const PrescriptionScreen({super.key});
@@ -107,60 +108,6 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     if (result != null) {
       await _loadData();
     }
-  }
-
-  List<Widget> _buildPageNumbers() {
-    List<Widget> widgets = [];
-    if (_totalPages <= 1) return widgets;
-    int start = (_currentPage - 2).clamp(0, _totalPages - 1);
-    int end = (_currentPage + 2).clamp(0, _totalPages - 1);
-    if (start > 0) {
-      widgets.add(_pageButton(1, 0));
-      if (start > 1) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-    }
-    for (int i = start; i <= end; i++) {
-      widgets.add(_pageButton(i + 1, i));
-    }
-    if (end < _totalPages - 1) {
-      if (end < _totalPages - 2) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-      widgets.add(_pageButton(_totalPages, _totalPages - 1));
-    }
-    return widgets;
-  }
-
-  Widget _pageButton(int label, int pageIndex) {
-    final isSelected = _currentPage == pageIndex;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.15) : null,
-          side: BorderSide(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).dividerColor,
-          ),
-          minimumSize: const Size(36, 36),
-          padding: EdgeInsets.zero,
-        ),
-        onPressed: isSelected ? null : () => setState(() => _currentPage = pageIndex),
-        child: Text(
-          label.toString(),
-          style: TextStyle(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -465,36 +412,21 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                 ),
                               ),
                               // Pagination Controls
-                              if (_totalPages > 1)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.first_page_rounded),
-                                        onPressed: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
-                                        tooltip: 'First Page',
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.chevron_left_rounded),
-                                        onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                                        tooltip: 'Previous Page',
-                                      ),
-                                      ..._buildPageNumbers(),
-                                      IconButton(
-                                        icon: const Icon(Icons.chevron_right_rounded),
-                                        onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                                        tooltip: 'Next Page',
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.last_page_rounded),
-                                        onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _totalPages > 0 ? _currentPage = _totalPages - 1 : 0) : null,
-                                        tooltip: 'Last Page',
-                                      ),
-                                    ],
-                                  ),
+                              Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: SmartPaginationControls(
+                                  currentPage: _currentPage,
+                                  totalPages: _totalPages,
+                                  totalItems: _filteredPrescriptions.length,
+                                  itemsPerPage: _pageSize,
+                                  onFirst: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
+                                  onPrevious: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
+                                  onNext: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
+                                  onLast: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage = _totalPages - 1) : null,
+                                  onPageSelect: (page) => setState(() => _currentPage = page),
+                                  showItemsInfo: true,
                                 ),
+                              ),
                             ],
                           ),
               ),
@@ -808,7 +740,6 @@ class _PrescriptionDialogState extends State<PrescriptionDialog> {
                                   border: OutlineInputBorder(),
                                 ),
                                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                // Only validate if not empty
                                 validator: (value) {
                                   if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
                                     return 'Invalid number';
@@ -827,7 +758,6 @@ class _PrescriptionDialogState extends State<PrescriptionDialog> {
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          // Only validate if not empty
                           validator: (value) {
                             if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
                               return 'Invalid number';

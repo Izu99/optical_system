@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/customer.dart';
 import '../db/customer_helper.dart';
 import '../widget/create_customer_dialog.dart';
+import '../widget/pagination.dart'; // Import the new pagination widget
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -167,55 +168,92 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }
   }
 
-  List<Widget> _buildPageNumbers() {
-    List<Widget> widgets = [];
-    if (_totalPages <= 1) return widgets;
-    int start = (_currentPage - 2).clamp(0, _totalPages - 1);
-    int end = (_currentPage + 2).clamp(0, _totalPages - 1);
-    if (start > 0) {
-      widgets.add(_pageButton(1, 0));
-      if (start > 1) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-    }
-    for (int i = start; i <= end; i++) {
-      widgets.add(_pageButton(i + 1, i));
-    }
-    if (end < _totalPages - 1) {
-      if (end < _totalPages - 2) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-      widgets.add(_pageButton(_totalPages, _totalPages - 1));
-    }
-    return widgets;
+  void _onPageChanged(int pageIndex) {
+    setState(() {
+      _currentPage = pageIndex;
+    });
   }
 
-  Widget _pageButton(int label, int pageIndex) {
-    final isSelected = _currentPage == pageIndex;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.15) : null,
-          side: BorderSide(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).dividerColor,
+  Widget _buildCustomerRow(Customer customer, int index) {
+    return GestureDetector(
+      onTap: () => _showEditCustomerDialog(customer),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).dividerColor.withOpacity(0.1),
+            ),
           ),
-          minimumSize: const Size(36, 36),
-          padding: EdgeInsets.zero,
         ),
-        onPressed: isSelected ? null : () => setState(() => _currentPage = pageIndex),
-        child: Text(
-          label.toString(),
-          style: TextStyle(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 40,
+              child: Text(
+                (_currentPage * _pageSize + index + 1).toString(), // Show row number
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                customer.name,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                customer.email,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Text(
+                customer.phoneNumber,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                customer.address,
+                style: Theme.of(context).textTheme.bodyMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SizedBox(
+              width: 100,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      _showEditCustomerDialog(customer);
+                    },
+                    icon: const Icon(Icons.edit_rounded),
+                    iconSize: 18,
+                    tooltip: 'Edit',
+                  ),
+                  IconButton(
+                    onPressed: () => _deleteCustomer(customer),
+                    icon: const Icon(Icons.delete_rounded),
+                    iconSize: 18,
+                    color: Colors.red,
+                    tooltip: 'Delete',
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -227,7 +265,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
-          // Removed CustomDialogTopBar here; now only in main_screen.dart
           Expanded(
             child: Column(
               children: [
@@ -373,118 +410,25 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                         itemCount: _currentPageCustomers.length,
                                         itemBuilder: (context, index) {
                                           final customer = _currentPageCustomers[index];
-                                          final serial = _currentPage * _pageSize + index + 1;
-                                          return Container(
-                                            padding: const EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              border: Border(
-                                                bottom: BorderSide(
-                                                  color: Theme.of(context).dividerColor.withOpacity(0.1),
-                                                ),
-                                              ),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                SizedBox(
-                                                  width: 40,
-                                                  child: Text(
-                                                    serial.toString(),
-                                                    textAlign: TextAlign.center,
-                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  flex: 2,
-                                                  child: Text(
-                                                    customer.name,
-                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  flex: 2,
-                                                  child: Text(
-                                                    customer.email,
-                                                    style: Theme.of(context).textTheme.bodyMedium,
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  flex: 1,
-                                                  child: Text(
-                                                    customer.phoneNumber,
-                                                    style: Theme.of(context).textTheme.bodyMedium,
-                                                  ),
-                                                ),
-                                                Expanded(
-                                                  flex: 2,
-                                                  child: Text(
-                                                    customer.address,
-                                                    style: Theme.of(context).textTheme.bodyMedium,
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: 100,
-                                                  child: Row(
-                                                    mainAxisAlignment: MainAxisAlignment.end,
-                                                    children: [
-                                                      IconButton(
-                                                        onPressed: () {
-                                                          _showEditCustomerDialog(customer);
-                                                        },
-                                                        icon: const Icon(Icons.edit_rounded),
-                                                        iconSize: 18,
-                                                        tooltip: 'Edit',
-                                                      ),
-                                                      IconButton(
-                                                        onPressed: () => _deleteCustomer(customer),
-                                                        icon: const Icon(Icons.delete_rounded),
-                                                        iconSize: 18,
-                                                        color: Colors.red,
-                                                        tooltip: 'Delete',
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
+                                          return _buildCustomerRow(customer, index);
                                         },
                                       ),
                                     ),
-                                    // Pagination Controls
+                                    // New Pagination Controls
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.first_page_rounded),
-                                            onPressed: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
-                                            tooltip: 'First Page',
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.chevron_left_rounded),
-                                            onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                                            tooltip: 'Previous Page',
-                                          ),
-                                          ..._buildPageNumbers(),
-                                          IconButton(
-                                            icon: const Icon(Icons.chevron_right_rounded),
-                                            onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                                            tooltip: 'Next Page',
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.last_page_rounded),
-                                            onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _totalPages > 0 ? _currentPage = _totalPages - 1 : 0) : null,
-                                            tooltip: 'Last Page',
-                                          ),
-                                        ],
-                                      ),
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: SmartPaginationControls(
+  currentPage: _currentPage,
+  totalPages: _totalPages,
+  totalItems: _filteredCustomers.length,
+  itemsPerPage: _pageSize,
+  onFirst: _currentPage > 0 ? () => _onPageChanged(0) : null,
+  onPrevious: _currentPage > 0 ? () => _onPageChanged(_currentPage - 1) : null,
+  onNext: _currentPage < _totalPages - 1 ? () => _onPageChanged(_currentPage + 1) : null,
+  onLast: _currentPage < _totalPages - 1 ? () => _onPageChanged(_totalPages - 1) : null,
+  onPageSelect: _onPageChanged,
+  showItemsInfo: true,
+),
                                     ),
                                   ],
                                 ),

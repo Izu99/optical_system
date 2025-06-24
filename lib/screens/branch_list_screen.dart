@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/branch.dart';
 import '../db/branch_helper.dart';
 import '../widget/create_branch_dialog.dart';
+import '../widget/pagination.dart'; // Import the pagination widget
 
 class BranchListScreen extends StatefulWidget {
   const BranchListScreen({super.key});
@@ -79,7 +80,7 @@ class _BranchListScreenState extends State<BranchListScreen> {
             branch.branchCode.toLowerCase().contains(query) ||
             branch.contactNumber.toLowerCase().contains(query);
       }).toList();
-      _currentPage = 0;
+      _currentPage = 0; // Reset to first page on search
     });
   }
 
@@ -179,58 +180,10 @@ class _BranchListScreenState extends State<BranchListScreen> {
     }
   }
 
-  List<Widget> _buildPageNumbers() {
-    List<Widget> widgets = [];
-    if (_totalPages <= 1) return widgets;
-    int start = (_currentPage - 2).clamp(0, _totalPages - 1);
-    int end = (_currentPage + 2).clamp(0, _totalPages - 1);
-    if (start > 0) {
-      widgets.add(_pageButton(1, 0));
-      if (start > 1) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-    }
-    for (int i = start; i <= end; i++) {
-      widgets.add(_pageButton(i + 1, i));
-    }
-    if (end < _totalPages - 1) {
-      if (end < _totalPages - 2) {
-        widgets.add(const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Text('...'),
-        ));
-      }
-      widgets.add(_pageButton(_totalPages, _totalPages - 1));
-    }
-    return widgets;
-  }
-
-  Widget _pageButton(int label, int pageIndex) {
-    final isSelected = _currentPage == pageIndex;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.15) : null,
-          side: BorderSide(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).dividerColor,
-          ),
-          minimumSize: const Size(36, 36),
-          padding: EdgeInsets.zero,
-        ),
-        onPressed: isSelected ? null : () => setState(() => _currentPage = pageIndex),
-        child: Text(
-          label.toString(),
-          style: TextStyle(
-            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).textTheme.bodyMedium?.color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
+  void _onPageChanged(int pageIndex) {
+    setState(() {
+      _currentPage = pageIndex;
+    });
   }
 
   @override
@@ -239,148 +192,91 @@ class _BranchListScreenState extends State<BranchListScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Search branches',
-                      prefixIcon: Icon(Icons.search_rounded),
-                    ),
-                    onChanged: (value) => _filterBranches(),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final result = await showDialog<Branch>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (context) => const CreateBranchDialog(),
-                    );
-                    if (result != null) {
-                      await _loadBranches();
-                    }
-                  },
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add Branch'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Branches Table
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Card(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _filteredBranches.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.account_balance_rounded,
-                                  size: 64,
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _branches.isEmpty ? 'No branches yet' : 'No matching branches',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+            child: Column(
+              children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: 'Search branches',
+                            prefixIcon: Icon(Icons.search_rounded),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final result = await showDialog<Branch>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const CreateBranchDialog(),
+                          );
+                          if (result != null) {
+                            await _loadBranches();
+                          }
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Add Branch'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Branches Table
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Card(
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _filteredBranches.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.account_balance_rounded,
+                                        size: 64,
+                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        _branches.isEmpty ? 'No branches yet' : 'No matching branches',
+                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _branches.isEmpty
+                                            ? 'Click the Add Branch button to add your first branch'
+                                            : 'Try adjusting your search terms',
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _branches.isEmpty
-                                      ? 'Create your first branch using the button above'
-                                      : 'Try adjusting your search terms',
-                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : Column(
-                            children: [
-                              // Table Header
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(12),
-                                    topRight: Radius.circular(12),
-                                  ),
-                                ),
-                                child: Row(
+                                )
+                              : Column(
                                   children: [
-                                    SizedBox(
-                                      width: 40,
-                                      child: Text(
-                                        '#',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        'Branch Name',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        'Branch Code',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        'Contact Number',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 100), // Actions column
-                                  ],
-                                ),
-                              ),
-                              // Table Body
-                              Expanded(
-                                child: ListView.builder(
-                                  itemCount: _currentPageBranches.length,
-                                  itemBuilder: (context, index) {
-                                    final branch = _currentPageBranches[index];
-                                    final serial = _currentPage * _pageSize + index + 1;
-                                    return Container(
+                                    // Table Header
+                                    Container(
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        border: Border(
-                                          bottom: BorderSide(
-                                            color: Theme.of(context).dividerColor.withOpacity(0.1),
-                                          ),
+                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(12),
+                                          topRight: Radius.circular(12),
                                         ),
                                       ),
                                       child: Row(
@@ -388,101 +284,149 @@ class _BranchListScreenState extends State<BranchListScreen> {
                                           SizedBox(
                                             width: 40,
                                             child: Text(
-                                              serial.toString(),
+                                              '#',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                               textAlign: TextAlign.center,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Text(
+                                              'Branch Name',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ),
                                           Expanded(
                                             flex: 2,
                                             child: Text(
-                                              branch.branchName,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                fontWeight: FontWeight.w500,
+                                              'Branch Code',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ),
                                           Expanded(
                                             flex: 2,
                                             child: Text(
-                                              branch.branchCode,
-                                              style: Theme.of(context).textTheme.bodyMedium,
+                                              'Contact Number',
+                                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                           ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              branch.contactNumber,
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width: 100,
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.end,
-                                              children: [
-                                                IconButton(
-                                                  onPressed: () {
-                                                    _showEditBranchDialog(branch);
-                                                  },
-                                                  icon: const Icon(Icons.edit_rounded),
-                                                  iconSize: 18,
-                                                  tooltip: 'Edit',
+                                          const SizedBox(width: 100), // Actions column
+                                        ],
+                                      ),
+                                    ),
+                                    // Table Body
+                                    Expanded(
+                                      child: ListView.builder(
+                                        itemCount: _currentPageBranches.length,
+                                        itemBuilder: (context, index) {
+                                          final branch = _currentPageBranches[index];
+                                          final serial = _currentPage * _pageSize + index + 1;
+                                          return Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color: Theme.of(context).dividerColor.withOpacity(0.1),
                                                 ),
-                                                IconButton(
-                                                  onPressed: () => _deleteBranch(branch),
-                                                  icon: const Icon(Icons.delete_rounded),
-                                                  iconSize: 18,
-                                                  color: Colors.red,
-                                                  tooltip: 'Delete',
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                SizedBox(
+                                                  width: 40,
+                                                  child: Text(
+                                                    serial.toString(),
+                                                    textAlign: TextAlign.center,
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: Text(
+                                                    branch.branchName,
+                                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: Text(
+                                                    branch.branchCode,
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: Text(
+                                                    branch.contactNumber,
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: 100,
+                                                  child: Row(
+                                                    mainAxisAlignment: MainAxisAlignment.end,
+                                                    children: [
+                                                      IconButton(
+                                                        onPressed: () {
+                                                          _showEditBranchDialog(branch);
+                                                        },
+                                                        icon: const Icon(Icons.edit_rounded),
+                                                        iconSize: 18,
+                                                        tooltip: 'Edit',
+                                                      ),
+                                                      IconButton(
+                                                        onPressed: () => _deleteBranch(branch),
+                                                        icon: const Icon(Icons.delete_rounded),
+                                                        iconSize: 18,
+                                                        color: Colors.red,
+                                                        tooltip: 'Delete',
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ],
                                             ),
-                                          ),
-                                        ],
+                                          );
+                                        },
                                       ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              // Pagination Controls
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.first_page_rounded),
-                                      onPressed: _currentPage > 0 ? () => setState(() => _currentPage = 0) : null,
-                                      tooltip: 'First Page',
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_left_rounded),
-                                      onPressed: _currentPage > 0 ? () => setState(() => _currentPage--) : null,
-                                      tooltip: 'Previous Page',
-                                    ),
-                                    ..._buildPageNumbers(),
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_right_rounded),
-                                      onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _currentPage++) : null,
-                                      tooltip: 'Next Page',
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.last_page_rounded),
-                                      onPressed: _currentPage < _totalPages - 1 ? () => setState(() => _totalPages > 0 ? _currentPage = _totalPages - 1 : 0) : null,
-                                      tooltip: 'Last Page',
+                                    // New Pagination Controls - Same as Customer Screen
+                                    Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: SmartPaginationControls(
+                                        currentPage: _currentPage,
+                                        totalPages: _totalPages,
+                                        totalItems: _filteredBranches.length,
+                                        itemsPerPage: _pageSize,
+                                        onFirst: _currentPage > 0 ? () => _onPageChanged(0) : null,
+                                        onPrevious: _currentPage > 0 ? () => _onPageChanged(_currentPage - 1) : null,
+                                        onNext: _currentPage < _totalPages - 1 ? () => _onPageChanged(_currentPage + 1) : null,
+                                        onLast: _currentPage < _totalPages - 1 ? () => _onPageChanged(_totalPages - 1) : null,
+                                        onPageSelect: _onPageChanged,
+                                                                                showItemsInfo: true,
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
-                          ),
-              ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
         ],
       ),
     );
