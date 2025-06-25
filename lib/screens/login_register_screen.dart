@@ -5,6 +5,8 @@ import 'main_screen.dart';
 import '../widget/app_window_top_bar.dart';
 import '../models/shop.dart';
 import '../db/shop_helper.dart' as shopdb;
+import '../db/employee_helper.dart';
+import '../models/employee.dart';
 
 class LoginRegisterScreen extends StatefulWidget {
   const LoginRegisterScreen({Key? key}) : super(key: key);
@@ -19,12 +21,15 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
   bool isPasswordVisible = false;
   bool isConfirmPasswordVisible = false;
   bool isLoading = false;
+  bool isEmployeeLogin = false;
   
   final _formKey = GlobalKey<FormState>();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController employeeEmailController = TextEditingController();
+  final TextEditingController employeePasswordController = TextEditingController();
   
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -49,6 +54,8 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    employeeEmailController.dispose();
+    employeePasswordController.dispose();
     super.dispose();
   }
 
@@ -181,74 +188,127 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
                                   ],
                                 ),
                                 
-                                // Form Fields
-                                TextFormField(
-                                  controller: usernameController,
-                                  validator: _validateUsername,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Username',
-                                    prefixIcon: Icon(Icons.person_outline),
-                                  ),
+                                // User type selection
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    ChoiceChip(
+                                      label: const Text('Admin'),
+                                      selected: !isEmployeeLogin,
+                                      onSelected: (v) => setState(() => isEmployeeLogin = false),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    ChoiceChip(
+                                      label: const Text('Employee'),
+                                      selected: isEmployeeLogin,
+                                      onSelected: (v) => setState(() => isEmployeeLogin = true),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 16),
                                 
-                                if (isRegistering) ...[
+                                // Form Fields
+                                if (!isEmployeeLogin) ...[
                                   TextFormField(
-                                    controller: emailController,
-                                    validator: _validateEmail,
-                                    keyboardType: TextInputType.emailAddress,
+                                    controller: usernameController,
+                                    validator: _validateUsername,
                                     decoration: const InputDecoration(
-                                      labelText: 'Email Address',
-                                      prefixIcon: Icon(Icons.email_outlined),
+                                      labelText: 'Username',
+                                      prefixIcon: Icon(Icons.person_outline),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                ],
-                                
-                                TextFormField(
-                                  controller: passwordController,
-                                  validator: _validatePassword,
-                                  obscureText: !isPasswordVisible,
-                                  decoration: InputDecoration(
-                                    labelText: 'Password',
-                                    prefixIcon: const Icon(Icons.lock_outline),
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        isPasswordVisible 
-                                            ? Icons.visibility_off 
-                                            : Icons.visibility,
+                                  
+                                  if (isRegistering) ...[
+                                    TextFormField(
+                                      controller: emailController,
+                                      validator: _validateEmail,
+                                      keyboardType: TextInputType.emailAddress,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Email Address',
+                                        prefixIcon: Icon(Icons.email_outlined),
                                       ),
-                                      onPressed: () {
-                                        setState(() {
-                                          isPasswordVisible = !isPasswordVisible;
-                                        });
-                                      },
                                     ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                if (isRegistering) ...[
+                                    const SizedBox(height: 16),
+                                  ],
+                                  
                                   TextFormField(
-                                    controller: confirmPasswordController,
-                                    validator: _validateConfirmPassword,
-                                    obscureText: !isConfirmPasswordVisible,
+                                    controller: passwordController,
+                                    validator: _validatePassword,
+                                    obscureText: !isPasswordVisible,
                                     decoration: InputDecoration(
-                                      labelText: 'Confirm Password',
+                                      labelText: 'Password',
                                       prefixIcon: const Icon(Icons.lock_outline),
                                       suffixIcon: IconButton(
                                         icon: Icon(
-                                          isConfirmPasswordVisible 
+                                          isPasswordVisible 
                                               ? Icons.visibility_off 
                                               : Icons.visibility,
                                         ),
                                         onPressed: () {
                                           setState(() {
-                                            isConfirmPasswordVisible = !isConfirmPasswordVisible;
+                                            isPasswordVisible = !isPasswordVisible;
                                           });
                                         },
                                       ),
                                     ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  
+                                  if (isRegistering) ...[
+                                    TextFormField(
+                                      controller: confirmPasswordController,
+                                      validator: _validateConfirmPassword,
+                                      obscureText: !isConfirmPasswordVisible,
+                                      decoration: InputDecoration(
+                                        labelText: 'Confirm Password',
+                                        prefixIcon: const Icon(Icons.lock_outline),
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            isConfirmPasswordVisible 
+                                                ? Icons.visibility_off 
+                                                : Icons.visibility,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              isConfirmPasswordVisible = !isConfirmPasswordVisible;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                  ],
+                                ] else ...[
+                                  TextFormField(
+                                    controller: employeeEmailController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Employee Email',
+                                      prefixIcon: Icon(Icons.email_outlined),
+                                    ),
+                                    validator: (v) => v == null || v.isEmpty ? 'Email required' : null,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  TextFormField(
+                                    controller: employeePasswordController,
+                                    obscureText: !isPasswordVisible,
+                                    decoration: InputDecoration(
+                                      labelText: 'Password',
+                                      prefixIcon: const Icon(Icons.lock_outline),
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          isPasswordVisible 
+                                              ? Icons.visibility_off 
+                                              : Icons.visibility,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            isPasswordVisible = !isPasswordVisible;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    validator: (v) => v == null || v.isEmpty ? 'Password required' : null,
                                   ),
                                   const SizedBox(height: 24),
                                 ],
@@ -258,7 +318,9 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
                                   height: 48,
                                   child: ElevatedButton(
                                     onPressed: isLoading ? null : () {
-                                      if (isRegistering) {
+                                      if (isEmployeeLogin) {
+                                        _handleEmployeeLogin(context);
+                                      } else if (isRegistering) {
                                         _handleRegistration();
                                       } else {
                                         _handleLogin(context);
@@ -274,7 +336,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
                                             ),
                                           )
                                         : Text(
-                                            isRegistering ? 'Create Account' : 'Sign In',
+                                            isEmployeeLogin ? 'Employee Sign In' : (isRegistering ? 'Create Account' : 'Sign In'),
                                             style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w600,
@@ -333,7 +395,9 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
           );
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainScreen()),
+            MaterialPageRoute(
+              builder: (context) => MainScreen.withUser(admin, 'admin'),
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -412,6 +476,48 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
         );
       }
       
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _handleEmployeeLogin(BuildContext context) async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => isLoading = true);
+      try {
+        final employees = await EmployeeHelper.instance.getAllEmployees();
+        final emp = employees.firstWhere(
+          (e) => e.email == employeeEmailController.text.trim() && e.password == employeePasswordController.text,
+          orElse: () => Employee(userId: -1, role: '', branchId: 0, email: ''),
+        );
+        if (emp.userId != -1) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Employee login successful!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainScreen.withUser(emp, 'employee'),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid employee email or password'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Employee login error: [${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() => isLoading = false);
     }
   }

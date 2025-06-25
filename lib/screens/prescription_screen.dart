@@ -4,6 +4,7 @@ import '../models/customer.dart';
 import '../db/prescription_helper.dart';
 import '../db/customer_helper.dart';
 import '../widget/pagination.dart';
+import '../theme.dart';
 
 class PrescriptionScreen extends StatefulWidget {
   const PrescriptionScreen({super.key});
@@ -181,9 +182,9 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                             children: [
                               // Table Header
                               Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(0),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                                  color: Theme.of(context).extension<AppPageTheme>()?.tableHeaderBg ?? Theme.of(context).colorScheme.primary,
                                   borderRadius: const BorderRadius.only(
                                     topLeft: Radius.circular(12),
                                     topRight: Radius.circular(12),
@@ -193,74 +194,57 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                   children: [
                                     SizedBox(
                                       width: 40,
-                                      child: Text(
-                                        '#',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                        textAlign: TextAlign.center,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        child: Text(
+                                          '#',
+                                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
                                       ),
                                     ),
                                     Expanded(
                                       flex: 2,
-                                      child: Text(
-                                        'Customer',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        child: Text(
+                                          'Customer',
+                                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                    Expanded(
-                                      child: Text(
-                                        'Left PD',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                                    ...['Left PD','Right PD','Left Add','Right Add','Left Axis','Right Axis','Left Sph','Right Sph','Right Cyl'].map((col) => Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        child: Text(
+                                          col,
+                                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    )),
+                                    SizedBox(
+                                      width: 100,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        child: Text(
+                                          'Action',
+                                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
                                       ),
                                     ),
-                                    Expanded(
-                                      child: Text(
-                                        'Right PD',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Left Add',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Right Add',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Left Axis',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Right Axis',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Left Sph',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Right Sph',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Right Cyl',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 100), // Actions column
                                   ],
                                 ),
                               ),
@@ -275,137 +259,119 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                       (c) => c.id == p.customerId, 
                                       orElse: () => Customer(id: 0, name: 'Unknown Customer', email: '', phoneNumber: '', address: '', createdAt: DateTime.now())
                                     );
-                                    return Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        border: Border(
-                                          bottom: BorderSide(
-                                            color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                    final rowColor = index % 2 == 0
+                                      ? Theme.of(context).extension<AppPageTheme>()?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+                                      : Theme.of(context).extension<AppPageTheme>()?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5);
+                                    return InkWell(
+                                      onTap: () => _showPrescriptionDialog(prescription: p),
+                                      borderRadius: BorderRadius.zero,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: rowColor,
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          SizedBox(
-                                            width: 40,
-                                            child: Text(
-                                              serial.toString(),
-                                              textAlign: TextAlign.center,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                        child: Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 40,
+                                              child: Text(
+                                                serial.toString(),
+                                                textAlign: TextAlign.center,
+                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                              ),
                                             ),
-                                          ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              customer.name,
-                                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-                                              overflow: TextOverflow.ellipsis,
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                customer.name,
+                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
                                             ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
+                                            ...[
                                               p.leftPd.toString(),
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.rightPd.toString(),
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.leftAdd?.toString() ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.rightAdd?.toString() ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.leftAxis?.toString() ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.rightAxis?.toString() ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.leftSph?.toString() ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.rightSph?.toString() ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Text(
                                               p.rightCyl?.toString() ?? '',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ),
-                                          SizedBox(
-                                            width: 100,
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.end,
-                                              children: [
-                                                IconButton(
-                                                  onPressed: () => _showPrescriptionDialog(prescription: p),
-                                                  icon: const Icon(Icons.edit_rounded),
-                                                  iconSize: 18,
-                                                  tooltip: 'Edit',
-                                                ),
-                                                IconButton(
-                                                  onPressed: () async {
-                                                    final confirm = await showDialog<bool>(
-                                                      context: context,
-                                                      builder: (context) => AlertDialog(
-                                                        title: const Text('Delete Prescription'),
-                                                        content: const Text('Are you sure you want to delete this prescription?'),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () => Navigator.of(context).pop(false),
-                                                            child: const Text('Cancel'),
+                                            ].map((val) => Expanded(
+                                              child: Text(
+                                                val,
+                                                style: Theme.of(context).textTheme.bodyMedium,
+                                              ),
+                                            )),
+                                            SizedBox(
+                                              width: 100,
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.end,
+                                                children: [
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Theme.of(context).colorScheme.primary,
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: IconButton(
+                                                      onPressed: () => _showPrescriptionDialog(prescription: p),
+                                                      icon: const Icon(Icons.edit_rounded, color: Colors.white),
+                                                      iconSize: 18,
+                                                      tooltip: 'Edit',
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red,
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: IconButton(
+                                                      onPressed: () async {
+                                                        final confirm = await showDialog<bool>(
+                                                          context: context,
+                                                          builder: (context) => AlertDialog(
+                                                            title: const Text('Delete Prescription'),
+                                                            content: const Text('Are you sure you want to delete this prescription?'),
+                                                            actions: [
+                                                              TextButton(
+                                                                onPressed: () => Navigator.of(context).pop(false),
+                                                                child: const Text('Cancel'),
+                                                              ),
+                                                              TextButton(
+                                                                onPressed: () => Navigator.of(context).pop(true),
+                                                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                                                child: const Text('Delete'),
+                                                              ),
+                                                            ],
                                                           ),
-                                                          TextButton(
-                                                            onPressed: () => Navigator.of(context).pop(true),
-                                                            style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                                            child: const Text('Delete'),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    );
-                                                    if (confirm == true) {
-                                                      await PrescriptionHelper.instance.deletePrescription(p.prescriptionId!);
-                                                      await _loadData();
-                                                      if (mounted) {
-                                                        ScaffoldMessenger.of(context).showSnackBar(
-                                                          const SnackBar(content: Text('Prescription deleted'), backgroundColor: Colors.red),
                                                         );
-                                                      }
-                                                    }
-                                                  },
-                                                  icon: const Icon(Icons.delete_rounded),
-                                                  iconSize: 18,
-                                                  color: Colors.red,
-                                                  tooltip: 'Delete',
-                                                ),
-                                              ],
+                                                        if (confirm == true) {
+                                                          await PrescriptionHelper.instance.deletePrescription(p.prescriptionId!);
+                                                          await _loadData();
+                                                          if (mounted) {
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              const SnackBar(content: Text('Prescription deleted'), backgroundColor: Colors.red),
+                                                            );
+                                                          }
+                                                        }
+                                                      },
+                                                      icon: const Icon(Icons.delete_rounded, color: Colors.white),
+                                                      iconSize: 18,
+                                                      tooltip: 'Delete',
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     );
                                   },

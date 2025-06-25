@@ -6,6 +6,7 @@ import '../db/bill_helper.dart';
 import '../db/customer_helper.dart';
 import '../widget/create_bill_dialog.dart';
 import '../widget/pagination.dart';
+import '../theme.dart';
 
 class BillListScreen extends StatefulWidget {
   const BillListScreen({super.key});
@@ -291,6 +292,9 @@ class _BillListScreenState extends State<BillListScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
+                                          color: index % 2 == 0
+                                            ? Theme.of(context).extension<AppPageTheme>()?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+                                            : Theme.of(context).extension<AppPageTheme>()?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
                                           border: Border(
                                             bottom: BorderSide(
                                               color: Theme.of(context).dividerColor.withOpacity(0.1),

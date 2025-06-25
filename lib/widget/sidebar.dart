@@ -8,11 +8,15 @@ import '../screens/admin_profile_screen.dart';
 class Sidebar extends StatelessWidget {
   final String currentPage;
   final Function(String) onPageChanged;
+  final String? userName;
+  final String? userRole;
 
   const Sidebar({
     super.key,
     required this.currentPage,
     required this.onPageChanged,
+    this.userName,
+    this.userRole,
   });
 
   @override
@@ -169,11 +173,6 @@ class Sidebar extends StatelessWidget {
         'icon': Icons.store_rounded,
         'title': 'Shop',
         'page': 'shop',
-      },
-      {
-        'icon': Icons.shopping_cart_rounded,
-        'title': 'Orders',
-        'page': 'orders',
       },
       {
         'icon': Icons.people_rounded,
@@ -418,14 +417,14 @@ class Sidebar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Administrator',
+                      userName ?? 'Employee/Admin',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurface,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      'System Admin',
+                      userRole ?? 'Role',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurface.withOpacity(0.6),
                       ),

@@ -442,6 +442,8 @@ class SmartSimplePagination extends StatelessWidget {
 
 // Example usage widget that demonstrates different page counts
 class PaginationExample extends StatefulWidget {
+  const PaginationExample({super.key});
+
   @override
   _PaginationExampleState createState() => _PaginationExampleState();
 }
@@ -453,9 +455,9 @@ class _PaginationExampleState extends State<PaginationExample> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Smart Pagination - Any Size')),
+      appBar: AppBar(title: const Text('Smart Pagination - Any Size')),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -463,12 +465,12 @@ class _PaginationExampleState extends State<PaginationExample> {
               'Current Page: ${currentPage + 1} of $totalPages',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             
             // Page count selector
             Text('Test with different page counts:', 
                  style: Theme.of(context).textTheme.titleMedium),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -484,14 +486,14 @@ class _PaginationExampleState extends State<PaginationExample> {
               ],
             ),
             
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             
             Text(
               _getExampleText(),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            SizedBox(height: 40),
+            const SizedBox(height: 40),
             
             // The pagination widget
             SmartSimplePagination(
@@ -505,12 +507,12 @@ class _PaginationExampleState extends State<PaginationExample> {
               accentColor: Colors.blue,
             ),
             
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             
             // Quick jump buttons for testing current page count
             Text('Quick navigation tests:', 
                  style: Theme.of(context).textTheme.titleMedium),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -544,7 +546,7 @@ class _PaginationExampleState extends State<PaginationExample> {
     // Always add first page
     buttons.add(ElevatedButton(
       onPressed: () => setState(() => currentPage = 0),
-      child: Text('Page 1'),
+      child: const Text('Page 1'),
     ));
     
     // Add strategic test pages based on total pages
@@ -575,7 +577,7 @@ class _PaginationExampleState extends State<PaginationExample> {
     // Always add last page
     buttons.add(ElevatedButton(
       onPressed: () => setState(() => currentPage = totalPages - 1),
-      child: Text('Last Page'),
+      child: const Text('Last Page'),
     ));
     
     return buttons;
@@ -590,12 +592,12 @@ class _PaginationExampleState extends State<PaginationExample> {
              '• Middle pages: Shows strategic pages for quick navigation\n'
              '• Last page: Shows 1, 2, ..., ${totalPages-2}, ${totalPages-1}, $totalPages';
     } else if (totalPages <= 1000) {
-      return 'Large pagination (${totalPages} pages):\n'
+      return 'Large pagination ($totalPages pages):\n'
              '• Uses milestone pages (every 10th/100th)\n'
              '• Smart strategic positioning\n'
              '• Quick jumps from any position';
     } else {
-      return 'Very large pagination (${totalPages} pages):\n'
+      return 'Very large pagination ($totalPages pages):\n'
              '• Uses major milestones (every 100th page)\n'
              '• Quarter/half/three-quarter navigation points\n'
              '• Optimized for massive datasets';

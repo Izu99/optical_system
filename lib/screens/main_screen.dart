@@ -13,9 +13,19 @@ import './prescription_screen.dart';
 import './bill_list_screen.dart';
 import './payment_list_screen.dart';
 import './dashboard_screen.dart';
+import './profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
+
+  // Add a named constructor to accept user and userType
+  MainScreen.withUser(dynamic user, String userType, {Key? key}) : super(key: key) {
+    _initialUser = user;
+    _initialUserType = userType;
+  }
+
+  static dynamic _initialUser;
+  static String? _initialUserType;
 
   @override
   State<MainScreen> createState() => MainScreenState();
@@ -24,11 +34,20 @@ class MainScreen extends StatefulWidget {
 class MainScreenState extends State<MainScreen> {
   String _currentPage = 'shop';
   bool _shopExists = false;
+  String? _userName;
+  String? _userRole;
+
+  dynamic _currentUser; // Admin or Employee
+  String _currentUserType = 'admin'; // or 'employee'
 
   @override
   void initState() {
     super.initState();
     _checkShopExists();
+    if (MainScreen._initialUser != null && MainScreen._initialUserType != null) {
+      _currentUser = MainScreen._initialUser;
+      _currentUserType = MainScreen._initialUserType!;
+    }
   }
 
   Future<void> _checkShopExists() async {
@@ -84,7 +103,7 @@ class MainScreenState extends State<MainScreen> {
       case 'shop':
         return const ShopFormScreen();
       case 'admin_profile':
-        return const ShopFormScreen();
+        return ProfileScreen(userType: _currentUserType, user: _currentUser);
       case 'frames':
         return const FrameListScreen(branchId: 1, shopId: 1); // TODO: Replace with actual selected branch/shop
       case 'lenses':
@@ -136,6 +155,14 @@ class MainScreenState extends State<MainScreen> {
     _checkShopExists();
   }
 
+  // Set user after login
+  void setUser(dynamic user, String userType) {
+    setState(() {
+      _currentUser = user;
+      _currentUserType = userType;
+    });
+  }
+
   static MainScreenState? of(BuildContext context) {
     return context.findAncestorStateOfType<MainScreenState>();
   }
@@ -150,6 +177,8 @@ class MainScreenState extends State<MainScreen> {
           Sidebar(
             currentPage: _currentPage,
             onPageChanged: _onPageChanged,
+            userName: _userName,
+            userRole: _userRole,
           ),
           Expanded(
             child: Column(

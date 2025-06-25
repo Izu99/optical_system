@@ -3,6 +3,7 @@ import '../models/branch.dart';
 import '../db/branch_helper.dart';
 import '../widget/create_branch_dialog.dart';
 import '../widget/pagination.dart'; // Import the pagination widget
+import '../theme.dart'; // Import AppPageTheme
 
 class BranchListScreen extends StatefulWidget {
   const BranchListScreen({super.key});
@@ -332,6 +333,9 @@ class _BranchListScreenState extends State<BranchListScreen> {
                                           return Container(
                                             padding: const EdgeInsets.all(16),
                                             decoration: BoxDecoration(
+                                              color: index % 2 == 0
+                                                ? Theme.of(context).extension<AppPageTheme>()?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+                                                : Theme.of(context).extension<AppPageTheme>()?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
                                               border: Border(
                                                 bottom: BorderSide(
                                                   color: Theme.of(context).dividerColor.withOpacity(0.1),

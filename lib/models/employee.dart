@@ -7,6 +7,7 @@ class Employee {
   final String? phone;
   final String? address;
   final String? imagePath;
+  final String? password;
 
   static const String roleFitter = 'fitter';
   static const String roleSalesPerson = 'sales-person';
@@ -21,6 +22,7 @@ class Employee {
     this.phone,
     this.address,
     this.imagePath,
+    this.password,
   });
 
   Map<String, dynamic> toMap() {
@@ -33,6 +35,7 @@ class Employee {
       'phone': phone,
       'address': address,
       'image_path': imagePath,
+      'password': password,
     };
   }
 
@@ -46,6 +49,7 @@ class Employee {
       phone: map['phone'],
       address: map['address'],
       imagePath: map['image_path'],
+      password: map['password'],
     );
   }
 
@@ -54,7 +58,7 @@ class Employee {
       case roleManager:
         return 'Manager';
       case roleSalesPerson:
-        return 'S-P';
+        return 'S/Person';
       case roleFitter:
         return 'Fitter';
       default:

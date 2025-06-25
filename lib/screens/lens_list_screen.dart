@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../db/lens_helper.dart';
 import '../models/lens.dart';
 import '../widget/pagination.dart'; // Import the pagination widget
+import '../theme.dart';
 
 class LensListScreen extends StatefulWidget {
   final int branchId;
@@ -322,6 +323,9 @@ class _LensListScreenState extends State<LensListScreen> {
                                           return Container(
                                             padding: const EdgeInsets.all(16),
                                             decoration: BoxDecoration(
+                                              color: index % 2 == 0
+                                                ? Theme.of(context).extension<AppPageTheme>()?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+                                                : Theme.of(context).extension<AppPageTheme>()?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
                                               border: Border(
                                                 bottom: BorderSide(
                                                   color: Theme.of(context).dividerColor.withOpacity(0.1),

@@ -182,10 +182,17 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
 
   Widget _buildRoleBadge(String role) {
     final roleColors = Theme.of(context).extension<AppRoleColors>();
+    final pageTheme = Theme.of(context).extension<AppPageTheme>();
     Color bg;
     Color fg;
     IconData roleIconData;
-    
+    BorderRadius badgeRadius = roleColors?.badgeRadius ?? pageTheme?.badgeRadius ?? BorderRadius.circular(20);
+    List<BoxShadow> badgeShadow = pageTheme?.badgeShadow ?? [];
+    double badgeWidth = pageTheme?.badgeWidth ?? 120;
+    double badgeIconSize = pageTheme?.badgeIconSize ?? 16;
+    double badgeLetterSpacing = pageTheme?.badgeLetterSpacing ?? 0.3;
+    EdgeInsets badgePadding = pageTheme?.badgePadding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+
     switch (role) {
       case Employee.roleManager:
         bg = roleColors?.managerBg ?? Colors.green.shade100;
@@ -209,26 +216,20 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
     }
 
     return Container(
-      width: 120, // Fixed width for consistent alignment
-      alignment: Alignment.center, // Center the badge content
+      width: badgeWidth,
+      alignment: Alignment.center,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: badgePadding,
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: fg.withOpacity(0.1),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          borderRadius: badgeRadius,
+          boxShadow: badgeShadow,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(roleIconData, color: fg, size: 16),
+            Icon(roleIconData, color: fg, size: badgeIconSize),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -236,7 +237,7 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: fg,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
+                  letterSpacing: badgeLetterSpacing,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
@@ -251,6 +252,7 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pageTheme = Theme.of(context).extension<AppPageTheme>();
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
@@ -258,25 +260,20 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
           Expanded(
             child: Column(
               children: [
-                // Enhanced Search Bar with better styling
+                // Search Bar
                 Container(
-                  padding: const EdgeInsets.all(24.0),
+                  padding: pageTheme?.searchBarPadding ?? const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    color: pageTheme?.searchBarFillColor ?? Theme.of(context).cardColor,
+                    borderRadius: pageTheme?.searchBarRadius ?? BorderRadius.circular(12),
+                    boxShadow: pageTheme?.cardShadow ?? [],
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: pageTheme?.searchBarRadius ?? BorderRadius.circular(12),
                             border: Border.all(
                               color: Theme.of(context).dividerColor.withOpacity(0.3),
                             ),
@@ -290,10 +287,7 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
+                              contentPadding: pageTheme?.searchFieldPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                             ),
                           ),
                         ),
@@ -304,28 +298,29 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                         icon: const Icon(Icons.add_rounded),
                         label: const Text('Add Employee'),
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          padding: pageTheme?.buttonPadding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                           textStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: pageTheme?.buttonRadius ?? BorderRadius.circular(12),
                           ),
+                          elevation: pageTheme?.buttonElevation ?? 0,
                         ),
                       ),
                     ],
                   ),
                 ),
-                
-                // Enhanced Table with better spacing and alignment
+                // Table
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                    padding: pageTheme?.cardMargin ?? const EdgeInsets.fromLTRB(24, 8, 24, 24),
                     child: Card(
-                      elevation: 2,
+                      elevation: pageTheme?.cardElevation ?? 2,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: pageTheme?.cardRadius ?? BorderRadius.circular(16),
                       ),
+                      shadowColor: Colors.transparent,
                       child: _isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : _filteredEmployees.isEmpty
@@ -335,10 +330,10 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                     children: [
                                       Icon(
                                         Icons.people_outline_rounded,
-                                        size: 80,
-                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                                        size: pageTheme?.emptyIconSize ?? 80,
+                                        color: Theme.of(context).colorScheme.primary.withOpacity(pageTheme?.emptyIconOpacity ?? 0.3),
                                       ),
-                                      const SizedBox(height: 24),
+                                      SizedBox(height: pageTheme?.emptySpacing.vertical ?? 24),
                                       Text(
                                         _employees.isEmpty ? 'No employees yet' : 'No matching employees',
                                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -346,7 +341,7 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      const SizedBox(height: 12),
+                                      SizedBox(height: (pageTheme?.emptySpacing.vertical ?? 12) / 2),
                                       Text(
                                         _employees.isEmpty 
                                             ? 'Click the Add Employee button to get started'
@@ -360,20 +355,20 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                 )
                               : Column(
                                   children: [
-                                    // Enhanced Table Header
+                                    // Table Header
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                                      padding: pageTheme?.tableHeaderPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
-                                        borderRadius: const BorderRadius.only(
-                                          topLeft: Radius.circular(16),
-                                          topRight: Radius.circular(16),
+                                        color: pageTheme?.tableHeaderBg ?? Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: pageTheme != null ? pageTheme.cardRadius.topLeft : const Radius.circular(16),
+                                          topRight: pageTheme != null ? pageTheme.cardRadius.topRight : const Radius.circular(16),
                                         ),
                                       ),
                                       child: Row(
                                         children: [
                                           SizedBox(
-                                            width: 50,
+                                            width: pageTheme?.serialWidth ?? 50,
                                             child: Text(
                                               '#',
                                               textAlign: TextAlign.center,
@@ -418,7 +413,7 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                           ),
                                           const SizedBox(width: 16),
                                           SizedBox(
-                                            width: 120,
+                                            width: pageTheme?.badgeWidth ?? 120,
                                             child: Text(
                                               'Role',
                                               textAlign: TextAlign.center,
@@ -454,7 +449,6 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                         ],
                                       ),
                                     ),
-                                    
                                     // Table Rows
                                     Expanded(
                                       child: ListView.builder(
@@ -463,21 +457,22 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                           final emp = _currentPageEmployees[index];
                                           final serial = _currentPage * _pageSize + index + 1;
                                           final isEven = index % 2 == 0;
-                                          
                                           return Material(
                                             color: Colors.transparent,
                                             child: InkWell(
                                               onTap: () => _showEmployeeDialog(employee: emp),
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius: pageTheme?.tableRowPadding != null ? BorderRadius.circular(8) : BorderRadius.circular(8),
                                               child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                                padding: pageTheme?.tableRowPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                                 decoration: BoxDecoration(
                                                   color: isEven 
-                                                    ? Theme.of(context).colorScheme.surface
-                                                    : Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                                                    ? pageTheme?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+                                                    : pageTheme?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
                                                   border: Border(
                                                     bottom: BorderSide(
-                                                      color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                                      color: pageTheme != null
+                                                        ? pageTheme.tableBorderColor.withOpacity(pageTheme.tableBorderOpacity)
+                                                        : Theme.of(context).dividerColor.withOpacity(0.1),
                                                     ),
                                                   ),
                                                 ),
@@ -485,12 +480,12 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                   children: [
                                                     // Serial Number
                                                     SizedBox(
-                                                      width: 50,
+                                                      width: pageTheme?.serialWidth ?? 50,
                                                       child: Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                        padding: pageTheme?.serialPadding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                         decoration: BoxDecoration(
                                                           color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                                          borderRadius: BorderRadius.circular(6),
+                                                          borderRadius: pageTheme?.serialRadius ?? BorderRadius.circular(6),
                                                         ),
                                                         child: Text(
                                                           serial.toString(),
@@ -503,7 +498,6 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                       ),
                                                     ),
                                                     const SizedBox(width: 16),
-                                                    
                                                     // Name
                                                     Expanded(
                                                       flex: 3,
@@ -529,7 +523,6 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                       ),
                                                     ),
                                                     const SizedBox(width: 16),
-                                                    
                                                     // Email
                                                     Expanded(
                                                       flex: 3,
@@ -540,7 +533,6 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                       ),
                                                     ),
                                                     const SizedBox(width: 16),
-                                                    
                                                     // Address
                                                     Expanded(
                                                       flex: 3,
@@ -552,11 +544,9 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                       ),
                                                     ),
                                                     const SizedBox(width: 16),
-                                                    
-                                                    // Role Badge with fixed width and center alignment
+                                                    // Role Badge
                                                     _buildRoleBadge(emp.role),
                                                     const SizedBox(width: 16),
-                                                    
                                                     // Branch
                                                     Expanded(
                                                       flex: 2,
@@ -576,7 +566,6 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                       ),
                                                     ),
                                                     const SizedBox(width: 16),
-                                                    
                                                     // Actions
                                                     SizedBox(
                                                       width: 100,
@@ -585,12 +574,12 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                         children: [
                                                           Container(
                                                             decoration: BoxDecoration(
-                                                              color: Colors.blue.withOpacity(0.1),
-                                                              borderRadius: BorderRadius.circular(8),
+                                                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                                              borderRadius: pageTheme?.iconButtonRadius ?? BorderRadius.circular(8),
                                                             ),
                                                             child: IconButton(
                                                               icon: const Icon(Icons.edit_rounded, size: 18),
-                                                              color: Colors.blue,
+                                                              color: Theme.of(context).colorScheme.primary,
                                                               tooltip: 'Edit Employee',
                                                               onPressed: () => _showEmployeeDialog(employee: emp),
                                                             ),
@@ -598,12 +587,12 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                                           const SizedBox(width: 8),
                                                           Container(
                                                             decoration: BoxDecoration(
-                                                              color: Colors.red.withOpacity(0.1),
-                                                              borderRadius: BorderRadius.circular(8),
+                                                              color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                                                              borderRadius: pageTheme?.iconButtonRadius ?? BorderRadius.circular(8),
                                                             ),
                                                             child: IconButton(
                                                               icon: const Icon(Icons.delete_rounded, size: 18),
-                                                              color: Colors.red,
+                                                              color: Theme.of(context).colorScheme.error,
                                                               tooltip: 'Delete Employee',
                                                               onPressed: () => _deleteEmployee(emp),
                                                             ),
@@ -619,15 +608,14 @@ class _EmployeeScreenState extends State<EmployeeScreen> {
                                         },
                                       ),
                                     ),
-                                    
-                                    // Enhanced Pagination
+                                    // Pagination
                                     Container(
-                                      padding: const EdgeInsets.all(20.0),
+                                      padding: pageTheme?.paginationPadding ?? const EdgeInsets.all(20.0),
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context).colorScheme.surface.withOpacity(0.5),
-                                        borderRadius: const BorderRadius.only(
-                                          bottomLeft: Radius.circular(16),
-                                          bottomRight: Radius.circular(16),
+                                        color: pageTheme?.paginationBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                                        borderRadius: BorderRadius.only(
+                                          bottomLeft: pageTheme != null ? pageTheme.cardRadius.bottomLeft : const Radius.circular(16),
+                                          bottomRight: pageTheme != null ? pageTheme.cardRadius.bottomRight : const Radius.circular(16),
                                         ),
                                       ),
                                       child: SmartPaginationControls(
@@ -676,6 +664,8 @@ class _EmployeeDialogState extends State<EmployeeDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  String? _generatedPassword;
 
   @override
   void initState() {
@@ -687,7 +677,17 @@ class _EmployeeDialogState extends State<EmployeeDialog> {
       _nameController.text = widget.employee!.name ?? '';
       _phoneController.text = widget.employee!.phone ?? '';
       _addressController.text = widget.employee!.address ?? '';
+      _passwordController.text = widget.employee!.password ?? '';
+    } else {
+      // Generate random password for new employee
+      _generatedPassword = _generateRandomPassword();
+      _passwordController.text = _generatedPassword!;
     }
+  }
+
+  String _generateRandomPassword() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return List.generate(8, (index) => chars[(chars.length * (index + DateTime.now().millisecondsSinceEpoch) % chars.length) % chars.length]).join();
   }
 
   @override
@@ -718,7 +718,7 @@ class _EmployeeDialogState extends State<EmployeeDialog> {
                           value: _role,
                           items: const [
                             DropdownMenuItem(value: Employee.roleManager, child: Text('Manager')),
-                            DropdownMenuItem(value: Employee.roleSalesPerson, child: Text('S-P')),
+                            DropdownMenuItem(value: Employee.roleSalesPerson, child: Text('S/Person')),
                             DropdownMenuItem(value: Employee.roleFitter, child: Text('Fitter')),
                           ],
                           onChanged: (v) => setState(() => _role = v),
@@ -774,6 +774,20 @@ class _EmployeeDialogState extends State<EmployeeDialog> {
                     maxLines: 3,
                     minLines: 1,
                   ),
+                  const SizedBox(height: 16),
+                  if (widget.employee == null) ...[
+                    TextFormField(
+                      controller: _passwordController,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Generated Password',
+                        prefixIcon: Icon(Icons.lock_outline),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_generatedPassword != null)
+                      SelectableText('Give this password to the employee: $_generatedPassword', style: const TextStyle(color: Colors.blue)),
+                  ],
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -794,6 +808,7 @@ class _EmployeeDialogState extends State<EmployeeDialog> {
                             name: _nameController.text.trim(),
                             phone: _phoneController.text.trim(),
                             address: _addressController.text.trim(),
+                            password: _passwordController.text.trim(),
                           );
                           if (widget.employee == null) {
                             await EmployeeHelper.instance.createEmployee(emp);

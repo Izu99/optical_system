@@ -3,6 +3,7 @@ import '../models/customer.dart';
 import '../db/customer_helper.dart';
 import '../widget/create_customer_dialog.dart';
 import '../widget/pagination.dart'; // Import the new pagination widget
+import '../theme.dart'; // Import AppPageTheme
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -180,6 +181,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
+          color: index % 2 == 0
+            ? Theme.of(context).extension<AppPageTheme>()?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+            : Theme.of(context).extension<AppPageTheme>()?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
           border: Border(
             bottom: BorderSide(
               color: Theme.of(context).dividerColor.withOpacity(0.1),

@@ -31,9 +31,14 @@ class EmployeeHelper {
         name TEXT,
         phone TEXT,
         address TEXT,
-        image_path TEXT
+        image_path TEXT,
+        password TEXT
       )
     ''');
+    // Migration: add password column if it doesn't exist
+    await db.execute('''
+      ALTER TABLE users ADD COLUMN password TEXT
+    ''').catchError((_) {});
   }
 
   Future<int> createEmployee(Employee employee) async {

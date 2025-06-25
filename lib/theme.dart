@@ -55,7 +55,296 @@ class AppRoleColors extends ThemeExtension<AppRoleColors> {
   }
 }
 
-// New modern UI colors extension
+// Enhanced UI theme extension for consistent styling across all pages
+class AppPageTheme extends ThemeExtension<AppPageTheme> {
+  // Search bar styling
+  final EdgeInsets searchBarPadding;
+  final BorderRadius searchBarRadius;
+  final double searchBarElevation;
+  final Color searchBarFillColor;
+  final EdgeInsets searchFieldPadding;
+  
+  // Card styling
+  final double cardElevation;
+  final BorderRadius cardRadius;
+  final EdgeInsets cardPadding;
+  final EdgeInsets cardMargin;
+  
+  // Table styling
+  final EdgeInsets tableHeaderPadding;
+  final EdgeInsets tableRowPadding;
+  final double tableHeaderFontWeight;
+  final double tableRowFontWeight;
+  final Color tableHeaderBg;
+  final Color tableEvenRowBg;
+  final Color tableOddRowBg;
+  final Color tableBorderColor;
+  final double tableBorderOpacity;
+  
+  // Button styling
+  final EdgeInsets buttonPadding;
+  final BorderRadius buttonRadius;
+  final double buttonElevation;
+  final EdgeInsets iconButtonPadding;
+  final BorderRadius iconButtonRadius;
+  final double iconButtonSize;
+  
+  // Badge styling
+  final EdgeInsets badgePadding;
+  final BorderRadius badgeRadius;
+  final double badgeWidth;
+  final double badgeIconSize;
+  final double badgeFontWeight;
+  final double badgeLetterSpacing;
+  
+  // Serial number styling
+  final EdgeInsets serialPadding;
+  final BorderRadius serialRadius;
+  final double serialWidth;
+  final double serialFontWeight;
+  
+  // Empty state styling
+  final double emptyIconSize;
+  final double emptyIconOpacity;
+  final EdgeInsets emptySpacing;
+  
+  // Pagination styling
+  final EdgeInsets paginationPadding;
+  final Color paginationBg;
+  
+  // Dialog styling
+  final BorderRadius dialogRadius;
+  final EdgeInsets dialogPadding;
+  final double dialogMaxWidth;
+  final EdgeInsets dialogFieldSpacing;
+  
+  // Shadow and elevation
+  final List<BoxShadow> cardShadow;
+  final List<BoxShadow> buttonShadow;
+  final List<BoxShadow> badgeShadow;
+
+  const AppPageTheme({
+    // Search bar
+    this.searchBarPadding = const EdgeInsets.all(24.0),
+    this.searchBarRadius = const BorderRadius.all(Radius.circular(12)),
+    this.searchBarElevation = 0,
+    this.searchBarFillColor = Colors.transparent,
+    this.searchFieldPadding = const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    
+    // Card
+    this.cardElevation = 2,
+    this.cardRadius = const BorderRadius.all(Radius.circular(16)),
+    this.cardPadding = const EdgeInsets.all(16),
+    this.cardMargin = const EdgeInsets.all(8),
+    
+    // Table
+    this.tableHeaderPadding = const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+    this.tableRowPadding = const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    this.tableHeaderFontWeight = 700,
+    this.tableRowFontWeight = 600,
+    this.tableHeaderBg = Colors.transparent,
+    this.tableEvenRowBg = Colors.transparent,
+    this.tableOddRowBg = Colors.transparent,
+    this.tableBorderColor = Colors.grey,
+    this.tableBorderOpacity = 0.1,
+    
+    // Button
+    this.buttonPadding = const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+    this.buttonRadius = const BorderRadius.all(Radius.circular(12)),
+    this.buttonElevation = 0,
+    this.iconButtonPadding = const EdgeInsets.all(8),
+    this.iconButtonRadius = const BorderRadius.all(Radius.circular(8)),
+    this.iconButtonSize = 18,
+    
+    // Badge
+    this.badgePadding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    this.badgeRadius = const BorderRadius.all(Radius.circular(20)),
+    this.badgeWidth = 120,
+    this.badgeIconSize = 16,
+    this.badgeFontWeight = 600,
+    this.badgeLetterSpacing = 0.3,
+    
+    // Serial
+    this.serialPadding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    this.serialRadius = const BorderRadius.all(Radius.circular(6)),
+    this.serialWidth = 50,
+    this.serialFontWeight = 600,
+    
+    // Empty state
+    this.emptyIconSize = 80,
+    this.emptyIconOpacity = 0.3,
+    this.emptySpacing = const EdgeInsets.symmetric(vertical: 12),
+    
+    // Pagination
+    this.paginationPadding = const EdgeInsets.all(20.0),
+    this.paginationBg = Colors.transparent,
+    
+    // Dialog
+    this.dialogRadius = const BorderRadius.all(Radius.circular(16)),
+    this.dialogPadding = const EdgeInsets.all(24.0),
+    this.dialogMaxWidth = 420,
+    this.dialogFieldSpacing = const EdgeInsets.only(bottom: 16),
+    
+    // Shadows
+    this.cardShadow = const [],
+    this.buttonShadow = const [],
+    this.badgeShadow = const [],
+  });
+
+  @override
+  AppPageTheme copyWith({
+    EdgeInsets? searchBarPadding,
+    BorderRadius? searchBarRadius,
+    double? searchBarElevation,
+    Color? searchBarFillColor,
+    EdgeInsets? searchFieldPadding,
+    double? cardElevation,
+    BorderRadius? cardRadius,
+    EdgeInsets? cardPadding,
+    EdgeInsets? cardMargin,
+    EdgeInsets? tableHeaderPadding,
+    EdgeInsets? tableRowPadding,
+    double? tableHeaderFontWeight,
+    double? tableRowFontWeight,
+    Color? tableHeaderBg,
+    Color? tableEvenRowBg,
+    Color? tableOddRowBg,
+    Color? tableBorderColor,
+    double? tableBorderOpacity,
+    EdgeInsets? buttonPadding,
+    BorderRadius? buttonRadius,
+    double? buttonElevation,
+    EdgeInsets? iconButtonPadding,
+    BorderRadius? iconButtonRadius,
+    double? iconButtonSize,
+    EdgeInsets? badgePadding,
+    BorderRadius? badgeRadius,
+    double? badgeWidth,
+    double? badgeIconSize,
+    double? badgeFontWeight,
+    double? badgeLetterSpacing,
+    EdgeInsets? serialPadding,
+    BorderRadius? serialRadius,
+    double? serialWidth,
+    double? serialFontWeight,
+    double? emptyIconSize,
+    double? emptyIconOpacity,
+    EdgeInsets? emptySpacing,
+    EdgeInsets? paginationPadding,
+    Color? paginationBg,
+    BorderRadius? dialogRadius,
+    EdgeInsets? dialogPadding,
+    double? dialogMaxWidth,
+    EdgeInsets? dialogFieldSpacing,
+    List<BoxShadow>? cardShadow,
+    List<BoxShadow>? buttonShadow,
+    List<BoxShadow>? badgeShadow,
+  }) {
+    return AppPageTheme(
+      searchBarPadding: searchBarPadding ?? this.searchBarPadding,
+      searchBarRadius: searchBarRadius ?? this.searchBarRadius,
+      searchBarElevation: searchBarElevation ?? this.searchBarElevation,
+      searchBarFillColor: searchBarFillColor ?? this.searchBarFillColor,
+      searchFieldPadding: searchFieldPadding ?? this.searchFieldPadding,
+      cardElevation: cardElevation ?? this.cardElevation,
+      cardRadius: cardRadius ?? this.cardRadius,
+      cardPadding: cardPadding ?? this.cardPadding,
+      cardMargin: cardMargin ?? this.cardMargin,
+      tableHeaderPadding: tableHeaderPadding ?? this.tableHeaderPadding,
+      tableRowPadding: tableRowPadding ?? this.tableRowPadding,
+      tableHeaderFontWeight: tableHeaderFontWeight ?? this.tableHeaderFontWeight,
+      tableRowFontWeight: tableRowFontWeight ?? this.tableRowFontWeight,
+      tableHeaderBg: tableHeaderBg ?? this.tableHeaderBg,
+      tableEvenRowBg: tableEvenRowBg ?? this.tableEvenRowBg,
+      tableOddRowBg: tableOddRowBg ?? this.tableOddRowBg,
+      tableBorderColor: tableBorderColor ?? this.tableBorderColor,
+      tableBorderOpacity: tableBorderOpacity ?? this.tableBorderOpacity,
+      buttonPadding: buttonPadding ?? this.buttonPadding,
+      buttonRadius: buttonRadius ?? this.buttonRadius,
+      buttonElevation: buttonElevation ?? this.buttonElevation,
+      iconButtonPadding: iconButtonPadding ?? this.iconButtonPadding,
+      iconButtonRadius: iconButtonRadius ?? this.iconButtonRadius,
+      iconButtonSize: iconButtonSize ?? this.iconButtonSize,
+      badgePadding: badgePadding ?? this.badgePadding,
+      badgeRadius: badgeRadius ?? this.badgeRadius,
+      badgeWidth: badgeWidth ?? this.badgeWidth,
+      badgeIconSize: badgeIconSize ?? this.badgeIconSize,
+      badgeFontWeight: badgeFontWeight ?? this.badgeFontWeight,
+      badgeLetterSpacing: badgeLetterSpacing ?? this.badgeLetterSpacing,
+      serialPadding: serialPadding ?? this.serialPadding,
+      serialRadius: serialRadius ?? this.serialRadius,
+      serialWidth: serialWidth ?? this.serialWidth,
+      serialFontWeight: serialFontWeight ?? this.serialFontWeight,
+      emptyIconSize: emptyIconSize ?? this.emptyIconSize,
+      emptyIconOpacity: emptyIconOpacity ?? this.emptyIconOpacity,
+      emptySpacing: emptySpacing ?? this.emptySpacing,
+      paginationPadding: paginationPadding ?? this.paginationPadding,
+      paginationBg: paginationBg ?? this.paginationBg,
+      dialogRadius: dialogRadius ?? this.dialogRadius,
+      dialogPadding: dialogPadding ?? this.dialogPadding,
+      dialogMaxWidth: dialogMaxWidth ?? this.dialogMaxWidth,
+      dialogFieldSpacing: dialogFieldSpacing ?? this.dialogFieldSpacing,
+      cardShadow: cardShadow ?? this.cardShadow,
+      buttonShadow: buttonShadow ?? this.buttonShadow,
+      badgeShadow: badgeShadow ?? this.badgeShadow,
+    );
+  }
+
+  @override
+  AppPageTheme lerp(ThemeExtension<AppPageTheme>? other, double t) {
+    if (other is! AppPageTheme) return this;
+    return AppPageTheme(
+      searchBarPadding: EdgeInsets.lerp(searchBarPadding, other.searchBarPadding, t) ?? searchBarPadding,
+      searchBarRadius: BorderRadius.lerp(searchBarRadius, other.searchBarRadius, t) ?? searchBarRadius,
+      searchBarElevation: (searchBarElevation * (1 - t) + other.searchBarElevation * t),
+      searchBarFillColor: Color.lerp(searchBarFillColor, other.searchBarFillColor, t) ?? searchBarFillColor,
+      searchFieldPadding: EdgeInsets.lerp(searchFieldPadding, other.searchFieldPadding, t) ?? searchFieldPadding,
+      cardElevation: (cardElevation * (1 - t) + other.cardElevation * t),
+      cardRadius: BorderRadius.lerp(cardRadius, other.cardRadius, t) ?? cardRadius,
+      cardPadding: EdgeInsets.lerp(cardPadding, other.cardPadding, t) ?? cardPadding,
+      cardMargin: EdgeInsets.lerp(cardMargin, other.cardMargin, t) ?? cardMargin,
+      tableHeaderPadding: EdgeInsets.lerp(tableHeaderPadding, other.tableHeaderPadding, t) ?? tableHeaderPadding,
+      tableRowPadding: EdgeInsets.lerp(tableRowPadding, other.tableRowPadding, t) ?? tableRowPadding,
+      tableHeaderFontWeight: (tableHeaderFontWeight * (1 - t) + other.tableHeaderFontWeight * t),
+      tableRowFontWeight: (tableRowFontWeight * (1 - t) + other.tableRowFontWeight * t),
+      tableHeaderBg: Color.lerp(tableHeaderBg, other.tableHeaderBg, t) ?? tableHeaderBg,
+      tableEvenRowBg: Color.lerp(tableEvenRowBg, other.tableEvenRowBg, t) ?? tableEvenRowBg,
+      tableOddRowBg: Color.lerp(tableOddRowBg, other.tableOddRowBg, t) ?? tableOddRowBg,
+      tableBorderColor: Color.lerp(tableBorderColor, other.tableBorderColor, t) ?? tableBorderColor,
+      tableBorderOpacity: (tableBorderOpacity * (1 - t) + other.tableBorderOpacity * t),
+      buttonPadding: EdgeInsets.lerp(buttonPadding, other.buttonPadding, t) ?? buttonPadding,
+      buttonRadius: BorderRadius.lerp(buttonRadius, other.buttonRadius, t) ?? buttonRadius,
+      buttonElevation: (buttonElevation * (1 - t) + other.buttonElevation * t),
+      iconButtonPadding: EdgeInsets.lerp(iconButtonPadding, other.iconButtonPadding, t) ?? iconButtonPadding,
+      iconButtonRadius: BorderRadius.lerp(iconButtonRadius, other.iconButtonRadius, t) ?? iconButtonRadius,
+      iconButtonSize: (iconButtonSize * (1 - t) + other.iconButtonSize * t),
+      badgePadding: EdgeInsets.lerp(badgePadding, other.badgePadding, t) ?? badgePadding,
+      badgeRadius: BorderRadius.lerp(badgeRadius, other.badgeRadius, t) ?? badgeRadius,
+      badgeWidth: (badgeWidth * (1 - t) + other.badgeWidth * t),
+      badgeIconSize: (badgeIconSize * (1 - t) + other.badgeIconSize * t),
+      badgeFontWeight: (badgeFontWeight * (1 - t) + other.badgeFontWeight * t),
+      badgeLetterSpacing: (badgeLetterSpacing * (1 - t) + other.badgeLetterSpacing * t),
+      serialPadding: EdgeInsets.lerp(serialPadding, other.serialPadding, t) ?? serialPadding,
+      serialRadius: BorderRadius.lerp(serialRadius, other.serialRadius, t) ?? serialRadius,
+      serialWidth: (serialWidth * (1 - t) + other.serialWidth * t),
+      serialFontWeight: (serialFontWeight * (1 - t) + other.serialFontWeight * t),
+      emptyIconSize: (emptyIconSize * (1 - t) + other.emptyIconSize * t),
+      emptyIconOpacity: (emptyIconOpacity * (1 - t) + other.emptyIconOpacity * t),
+      emptySpacing: EdgeInsets.lerp(emptySpacing, other.emptySpacing, t) ?? emptySpacing,
+      paginationPadding: EdgeInsets.lerp(paginationPadding, other.paginationPadding, t) ?? paginationPadding,
+      paginationBg: Color.lerp(paginationBg, other.paginationBg, t) ?? paginationBg,
+      dialogRadius: BorderRadius.lerp(dialogRadius, other.dialogRadius, t) ?? dialogRadius,
+      dialogPadding: EdgeInsets.lerp(dialogPadding, other.dialogPadding, t) ?? dialogPadding,
+      dialogMaxWidth: (dialogMaxWidth * (1 - t) + other.dialogMaxWidth * t),
+      dialogFieldSpacing: EdgeInsets.lerp(dialogFieldSpacing, other.dialogFieldSpacing, t) ?? dialogFieldSpacing,
+      cardShadow: t < 0.5 ? cardShadow : other.cardShadow,
+      buttonShadow: t < 0.5 ? buttonShadow : other.buttonShadow,
+      badgeShadow: t < 0.5 ? badgeShadow : other.badgeShadow,
+    );
+  }
+}
+
+// Modern UI colors extension (unchanged)
 class ModernUIColors extends ThemeExtension<ModernUIColors> {
   final Color glassBg;
   final Color glassStroke;
@@ -191,61 +480,52 @@ class ThemeProvider extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFFFAFAFC),
     cardTheme: CardThemeData(
-      elevation: 0,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey[200]!),
       ),
       color: const Color(0xFFFFFBFF),
-      margin: const EdgeInsets.all(8),
+      margin: const EdgeInsets.fromLTRB(24, 8, 24, 24),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: const Color(0xFFF8F9FA),
+      filled: false,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE1E5E9)),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFE1E5E9)),
+        borderRadius: BorderRadius.circular(12), 
+        borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFEF4444)),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFEF4444), width: 2),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
         backgroundColor: const Color(0xFF2563EB),
         foregroundColor: Colors.white,
-        shadowColor: Colors.transparent,
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
       ),
     ),
-    extensions: const <ThemeExtension<dynamic>>[
-      AppRoleColors(
+    extensions: <ThemeExtension<dynamic>>[
+      const AppRoleColors(
         managerBg: Color(0xFFDCFCE7),
         managerText: Color(0xFF166534),
         salesPersonBg: Color(0xFFDBEAFE),
         salesPersonText: Color(0xFF1E40AF),
         fitterBg: Color(0xFFE0E7FF),
         fitterText: Color(0xFF3730A3),
+        badgeRadius: BorderRadius.all(Radius.circular(20)),
       ),
-      ModernUIColors(
+      const ModernUIColors(
         glassBg: Color(0xF0FFFFFF),
         glassStroke: Color(0x20000000),
         hoverBg: Color(0x08000000),
@@ -261,6 +541,26 @@ class ThemeProvider extends ChangeNotifier {
         warningText: Color(0xFF92400E),
         infoBg: Color(0xFFDBEAFE),
         infoText: Color(0xFF1E40AF),
+      ),
+      AppPageTheme(
+        cardShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        badgeShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+        tableHeaderBg: Color(0xFF2563EB).withOpacity(0.08),
+        tableEvenRowBg: Color(0xFFFFFFFF),
+        tableOddRowBg: Color(0xFFF6F8FA),
+        paginationBg: Color(0xFFFFFBFF).withOpacity(0.5),
       ),
     ],
   );
@@ -291,61 +591,52 @@ class ThemeProvider extends ChangeNotifier {
     ),
     scaffoldBackgroundColor: const Color(0xFF0B0F14),
     cardTheme: CardThemeData(
-      elevation: 0,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFF2A2D31)),
       ),
       color: const Color(0xFF1A1D23),
-      margin: const EdgeInsets.all(8),
+      margin: const EdgeInsets.fromLTRB(24, 8, 24, 24),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: const Color(0xFF1A1D23),
+      filled: false,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF2A2D31)),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF2A2D31)),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF4F83FF), width: 2),
       ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFFF5449)),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFFFF5449), width: 2),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
         backgroundColor: const Color(0xFF4F83FF),
         foregroundColor: Colors.white,
-        shadowColor: Colors.transparent,
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
       ),
     ),
-    extensions: const <ThemeExtension<dynamic>>[
-      AppRoleColors(
+    extensions: <ThemeExtension<dynamic>>[
+      const AppRoleColors(
         managerBg: Color(0xFF1F4A2C),
         managerText: Color(0xFF7EE3A3),
         salesPersonBg: Color(0xFF1E3A8A),
         salesPersonText: Color(0xFF93C5FD),
         fitterBg: Color(0xFF312E81),
         fitterText: Color(0xFFA5B4FC),
+        badgeRadius: BorderRadius.all(Radius.circular(20)),
       ),
-      ModernUIColors(
+      const ModernUIColors(
         glassBg: Color(0xD91A1D23),
         glassStroke: Color(0x20FFFFFF),
         hoverBg: Color(0x08FFFFFF),
@@ -361,6 +652,26 @@ class ThemeProvider extends ChangeNotifier {
         warningText: Color(0xFFFFD768),
         infoBg: Color(0xFF1E3A8A),
         infoText: Color(0xFF93C5FD),
+      ),
+      AppPageTheme(
+        cardShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        badgeShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+        tableHeaderBg: Color(0xFF4F83FF).withOpacity(0.08),
+        tableEvenRowBg: Color(0xFF1A1D23),
+        tableOddRowBg: Color(0xFF23272F),
+        paginationBg: Color(0xFF1A1D23).withOpacity(0.5),
       ),
     ],
   );

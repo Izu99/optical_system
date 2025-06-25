@@ -8,6 +8,10 @@ import '../db/frame_helper.dart';
 import '../db/lens_helper.dart';
 import '../models/frame.dart';
 import '../models/lens.dart';
+import '../models/employee.dart';
+import '../db/employee_helper.dart';
+import '../models/payment.dart';
+import '../db/payment_helper.dart';
 
 class CreateBillDialog extends StatefulWidget {
   final Bill? bill;
@@ -22,7 +26,6 @@ class CreateBillDialog extends StatefulWidget {
 class _CreateBillDialogState extends State<CreateBillDialog> {
   final _formKey = GlobalKey<FormState>();
   Customer? _selectedCustomer;
-  String? _salesPerson;
   DateTime? _invoiceDate;
   DateTime? _deliveryDate;
   String? _invoiceTime;
@@ -31,6 +34,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
   List<Customer> _customers = [];
   List<Frame> _frames = [];
   List<Lens> _lenses = [];
+  List<Employee> _employees = [];
   bool _isLoading = false;
 
   late final TextEditingController _salesPersonController = TextEditingController();
@@ -42,6 +46,17 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
   final TextEditingController _customerPhoneController = TextEditingController();
   final TextEditingController _customerAddressController = TextEditingController();
 
+  // Payment fields
+  final TextEditingController _advancePaidController = TextEditingController();
+  final TextEditingController _balanceAmountController = TextEditingController();
+  final TextEditingController _totalAmountController = TextEditingController();
+  final TextEditingController _discountController = TextEditingController();
+  final TextEditingController _fittingChargesController = TextEditingController();
+  final TextEditingController _grandTotalController = TextEditingController();
+  String _paymentType = 'Cash';
+  final List<String> _paymentTypes = ['Cash', 'Card', 'Online', 'Other'];
+  Employee? _selectedSalesPerson;
+
   @override
   void initState() {
     super.initState();
@@ -50,16 +65,16 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
 
   Future<void> _loadData() async {
     setState(() { _isLoading = true; });
-    
     try {
       final customers = await DatabaseHelper.instance.getAllCustomers();
       final frames = await FrameHelper.instance.getAllFrames();
       final lenses = await LensHelper.instance.getAllLenses();
-      
+      final employees = await EmployeeHelper.instance.getAllEmployees();
       setState(() {
         _customers = customers;
         _frames = frames;
         _lenses = lenses;
+        _employees = employees;
       });
 
       // Initialize form data if editing
@@ -77,13 +92,11 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
 
   Future<void> _initializeEditData() async {
     final bill = widget.bill!;
-    
     // Find and set customer
     final customer = _customers.firstWhere(
       (c) => c.id == bill.customerId,
       orElse: () => Customer(id: 0, name: '', email: '', phoneNumber: '', address: '', createdAt: DateTime.now()),
     );
-    
     // Load bill items
     List<BillItem> billItems = [];
     try {
@@ -91,7 +104,21 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
     } catch (e) {
       print('Error loading bill items: $e');
     }
-    
+    // Load payment
+    Payment? payment;
+    try {
+      payment = await PaymentHelper.instance.getPaymentByBillId(bill.billingId!);
+    } catch (e) {
+      print('Error loading payment: $e');
+    }
+    // Find and set sales person (by name or email)
+    Employee? salesPerson;
+    if (bill.salesPerson.isNotEmpty) {
+      salesPerson = _employees.firstWhere(
+        (e) => (e.name != null && e.name == bill.salesPerson) || e.email == bill.salesPerson,
+        orElse: () => _employees.isNotEmpty ? _employees.first : Employee(userId: 0, role: '', branchId: 0, email: '', name: '', phone: '', address: '', imagePath: ''),
+      );
+    }
     setState(() {
       // Set customer data
       if (customer.id != 0) {
@@ -102,24 +129,35 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         _customerPhoneController.text = customer.phoneNumber;
         _customerAddressController.text = customer.address;
       }
-      
       // Set bill data
-      _salesPerson = bill.salesPerson;
-      _salesPersonController.text = bill.salesPerson ?? '';
-      
+      _selectedSalesPerson = salesPerson;
+      _salesPersonController.text = salesPerson?.name ?? salesPerson?.email ?? '';
       _invoiceDate = bill.invoiceDate;
       _deliveryDate = bill.deliveryDate;
-      
       _invoiceTime = bill.invoiceTime;
       _invoiceTimeController.text = bill.invoiceTime ?? '';
-      
       _deliveryTime = bill.deliveryTime;
       _deliveryTimeController.text = bill.deliveryTime ?? '';
-      
       // Set bill items
-      _items = billItems.isNotEmpty ? billItems : [
-        BillItem(billingId: bill.billingId ?? 0)
-      ];
+      _items = billItems.isNotEmpty ? billItems : [BillItem(billingId: bill.billingId ?? 0)];
+      // Set payment fields
+      if (payment != null) {
+        _advancePaidController.text = payment.advancePaid.toString();
+        _balanceAmountController.text = payment.balanceAmount.toString();
+        _totalAmountController.text = payment.totalAmount.toString();
+        _discountController.text = payment.discount.toString();
+        _fittingChargesController.text = payment.fittingCharges.toString();
+        _grandTotalController.text = payment.grandTotal.toString();
+        _paymentType = payment.paymentType;
+      } else {
+        _advancePaidController.text = '';
+        _balanceAmountController.text = '';
+        _totalAmountController.text = '';
+        _discountController.text = '';
+        _fittingChargesController.text = '';
+        _grandTotalController.text = '';
+        _paymentType = 'Cash';
+      }
     });
   }
 
@@ -164,19 +202,17 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedSalesPerson == null) return; // Ensure sales person is selected
     if (widget.isEdit && widget.onUpdate != null) {
       final confirmed = await widget.onUpdate!();
       if (!confirmed) return;
     }
-    
     setState(() { _isLoading = true; });
-    
     try {
       _invoiceDate ??= DateTime.now();
       _deliveryDate ??= DateTime.now();
       _invoiceTime ??= TimeOfDay.now().format(context);
       _deliveryTime ??= TimeOfDay.now().format(context);
-      
       Customer? customerToUse = _selectedCustomer;
       if (customerToUse == null) {
         final newCustomer = Customer(
@@ -189,7 +225,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         final newId = await DatabaseHelper.instance.createCustomer(newCustomer);
         customerToUse = newCustomer.copyWith(id: newId);
       } else {
-        // If user edited details, update customer
+        // Always update customer with latest form values
         final updatedCustomer = customerToUse.copyWith(
           name: _customerNameController.text.trim(),
           email: _customerEmailController.text.trim(),
@@ -199,17 +235,15 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         await DatabaseHelper.instance.updateCustomer(updatedCustomer);
         customerToUse = updatedCustomer;
       }
-      
       final bill = Bill(
         billingId: widget.isEdit ? widget.bill!.billingId : null,
         deliveryDate: _deliveryDate,
         invoiceDate: _invoiceDate,
         invoiceTime: _invoiceTime,
         deliveryTime: _deliveryTime,
-        salesPerson: _salesPerson ?? _salesPersonController.text,
+        salesPerson: _selectedSalesPerson!.name ?? _selectedSalesPerson!.email,
         customerId: customerToUse.id!,
       );
-      
       int billingId;
       if (widget.isEdit) {
         await BillHelper.instance.updateBill(bill);
@@ -222,7 +256,6 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       } else {
         billingId = await BillHelper.instance.createBill(bill);
       }
-      
       // Add new items
       for (final item in _items) {
         if ((item.frameId == null && item.lensId == null) || 
@@ -237,7 +270,29 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
           ),
         );
       }
-      
+      // --- Save or Update Payment to DB ---
+      Payment? existingPayment;
+      if (widget.isEdit) {
+        try {
+          existingPayment = await PaymentHelper.instance.getPaymentByBillId(billingId);
+        } catch (_) {}
+      }
+      final payment = Payment(
+        paymentId: existingPayment?.paymentId,
+        billingId: billingId,
+        advancePaid: double.tryParse(_advancePaidController.text) ?? 0,
+        balanceAmount: double.tryParse(_balanceAmountController.text) ?? 0,
+        totalAmount: double.tryParse(_totalAmountController.text) ?? 0,
+        discount: double.tryParse(_discountController.text) ?? 0,
+        fittingCharges: double.tryParse(_fittingChargesController.text) ?? 0,
+        grandTotal: double.tryParse(_grandTotalController.text) ?? 0,
+        paymentType: _paymentType,
+      );
+      if (widget.isEdit && existingPayment != null) {
+        await PaymentHelper.instance.updatePayment(payment);
+      } else {
+        await PaymentHelper.instance.createPayment(payment);
+      }
       if (mounted) {
         Navigator.of(context).pop(bill);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -248,7 +303,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         );
       }
     } catch (e) {
-      print('Error saving bill: $e');
+      print('Error saving bill/payment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -428,14 +483,59 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _salesPersonController,
-                      decoration: const InputDecoration(
-                        labelText: 'Sales Person',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (v) => _salesPerson = v,
-                      validator: (v) => _validateRequired(v, 'Sales Person'),
+                    // --- Sales Person Autocomplete ---
+                    Autocomplete<Employee>(
+                      displayStringForOption: (e) => e.name ?? e.email,
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        final q = textEditingValue.text.toLowerCase();
+                        return _employees.where((e) =>
+                          (e.name?.toLowerCase().contains(q) ?? false) ||
+                          e.email.toLowerCase().contains(q)
+                        ).toList();
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        if (_selectedSalesPerson != null && controller.text != (_selectedSalesPerson!.name ?? _selectedSalesPerson!.email)) {
+                          controller.text = _selectedSalesPerson!.name ?? _selectedSalesPerson!.email;
+                        }
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: const InputDecoration(
+                            labelText: 'Sales Person',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (v) => _selectedSalesPerson == null ? 'Please select a sales person' : null,
+                          readOnly: false,
+                        );
+                      },
+                      onSelected: (Employee selection) {
+                        setState(() {
+                          _selectedSalesPerson = selection;
+                        });
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4.0,
+                            child: SizedBox(
+                              height: 200,
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final option = options.elementAt(index);
+                                  return ListTile(
+                                    title: Text(option.name ?? option.email),
+                                    subtitle: Text(option.email),
+                                    onTap: () => onSelected(option),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -599,6 +699,80 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    // Payment section
+                    Text('Payment Details', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _paymentType,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Type',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _paymentTypes.map((type) => DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type),
+                      )).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _paymentType = v!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _advancePaidController,
+                      decoration: const InputDecoration(
+                        labelText: 'Advance Paid',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _balanceAmountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Balance Amount',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _totalAmountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Total Amount',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _discountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Discount',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _fittingChargesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Fitting Charges',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _grandTotalController,
+                      decoration: const InputDecoration(
+                        labelText: 'Grand Total',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
@@ -644,6 +818,12 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
     _customerEmailController.dispose();
     _customerPhoneController.dispose();
     _customerAddressController.dispose();
+    _advancePaidController.dispose();
+    _balanceAmountController.dispose();
+    _totalAmountController.dispose();
+    _discountController.dispose();
+    _fittingChargesController.dispose();
+    _grandTotalController.dispose();
     super.dispose();
   }
 }
