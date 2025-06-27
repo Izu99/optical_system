@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:collection/collection.dart';
 import '../models/bill.dart';
 import '../models/bill_item.dart';
 import '../models/customer.dart';
@@ -12,6 +13,9 @@ import '../models/employee.dart';
 import '../db/employee_helper.dart';
 import '../models/payment.dart';
 import '../db/payment_helper.dart';
+import '../models/bill_item_edit_state.dart';
+import '../models/prescription.dart';
+import '../db/prescription_helper.dart';
 
 class CreateBillDialog extends StatefulWidget {
   final Bill? bill;
@@ -56,6 +60,21 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
   String _paymentType = 'Cash';
   final List<String> _paymentTypes = ['Cash', 'Card', 'Online', 'Other'];
   Employee? _selectedSalesPerson;
+
+  // Remove old single frame/lens selection state
+  // Add a list to track BillItem editing state
+  List<BillItemEditState> _billItemStates = [];
+
+  // --- Prescription fields ---
+  final TextEditingController _leftPdController = TextEditingController();
+  final TextEditingController _rightPdController = TextEditingController();
+  final TextEditingController _leftAddController = TextEditingController();
+  final TextEditingController _rightAddController = TextEditingController();
+  final TextEditingController _leftAxisController = TextEditingController();
+  final TextEditingController _rightAxisController = TextEditingController();
+  final TextEditingController _leftSphController = TextEditingController();
+  final TextEditingController _rightSphController = TextEditingController();
+  final TextEditingController _rightCylController = TextEditingController();
 
   @override
   void initState() {
@@ -138,8 +157,25 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       _invoiceTimeController.text = bill.invoiceTime ?? '';
       _deliveryTime = bill.deliveryTime;
       _deliveryTimeController.text = bill.deliveryTime ?? '';
-      // Set bill items
-      _items = billItems.isNotEmpty ? billItems : [BillItem(billingId: bill.billingId ?? 0)];
+      // Set bill items as edit states
+      _billItemStates = billItems.isNotEmpty
+        ? billItems.map((item) {
+            final frame = _frames.firstWhereOrNull((f) => f.frameId == item.frameId);
+            final lens = _lenses.firstWhereOrNull((l) => l.lensId == item.lensId);
+            return BillItemEditState(
+              frameId: item.frameId,
+              lensId: item.lensId,
+              frameQuantity: item.frameQuantity ?? 1,
+              lensQuantity: item.lensQuantity ?? 1,
+              frameBrand: frame?.brand,
+              frameSize: frame?.size,
+              frameColor: frame?.color,
+              lensPower: lens?.power,
+              lensCoating: lens?.coating,
+              lensCategory: lens?.category,
+            );
+          }).toList()
+        : [BillItemEditState()];
       // Set payment fields
       if (payment != null) {
         _advancePaidController.text = payment.advancePaid.toString();
@@ -159,6 +195,30 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         _paymentType = 'Cash';
       }
     });
+
+    // Load latest prescription for this customer
+    Prescription? latestPrescription;
+    try {
+      if (customer.id != null) {
+        final prescriptions = await PrescriptionHelper.instance.getPrescriptionsByCustomerId(customer.id!);
+        if (prescriptions.isNotEmpty) {
+          latestPrescription = prescriptions.last;
+        }
+      }
+    } catch (e) {
+      print('Error loading prescription: $e');
+    }
+    if (latestPrescription != null) {
+      _leftPdController.text = latestPrescription.leftPd.toString();
+      _rightPdController.text = latestPrescription.rightPd.toString();
+      _leftAddController.text = latestPrescription.leftAdd?.toString() ?? '';
+      _rightAddController.text = latestPrescription.rightAdd?.toString() ?? '';
+      _leftAxisController.text = latestPrescription.leftAxis?.toString() ?? '';
+      _rightAxisController.text = latestPrescription.rightAxis?.toString() ?? '';
+      _leftSphController.text = latestPrescription.leftSph?.toString() ?? '';
+      _rightSphController.text = latestPrescription.rightSph?.toString() ?? '';
+      _rightCylController.text = latestPrescription.rightCyl?.toString() ?? '';
+    }
   }
 
   void _initializeNewBillData() {
@@ -168,7 +228,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       _deliveryTimeController.text = TimeOfDay.now().format(context);
       _invoiceDate = DateTime.now();
       _deliveryDate = DateTime.now();
-      _items = [BillItem(billingId: 0)];
+      _billItemStates = [ BillItemEditState() ];
     });
   }
 
@@ -256,7 +316,8 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       } else {
         billingId = await BillHelper.instance.createBill(bill);
       }
-      // Add new items
+      // Add new items from _billItemStates
+      _items = _billItemStates.map((e) => e.toBillItem(billingId)).toList();
       for (final item in _items) {
         if ((item.frameId == null && item.lensId == null) || 
             ((item.frameQuantity ?? 0) <= 0 && (item.lensQuantity ?? 0) <= 0)) {
@@ -293,6 +354,57 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       } else {
         await PaymentHelper.instance.createPayment(payment);
       }
+      // --- After bill item creation, reduce stock ---
+      for (final item in _items) {
+        if (item.frameId != null && item.frameQuantity != null && item.frameQuantity! > 0) {
+          final frame = _frames.firstWhere((f) => f.frameId == item.frameId);
+          final updatedFrame = Frame(
+            frameId: frame.frameId,
+            brand: frame.brand,
+            size: frame.size,
+            wholeSalePrice: frame.wholeSalePrice,
+            color: frame.color,
+            model: frame.model,
+            sellingPrice: frame.sellingPrice,
+            stock: frame.stock - item.frameQuantity!,
+            branchId: frame.branchId,
+            shopId: frame.shopId,
+            imagePath: frame.imagePath,
+          );
+          await FrameHelper.instance.updateFrame(updatedFrame);
+        }
+        if (item.lensId != null && item.lensQuantity != null && item.lensQuantity! > 0) {
+          final lens = _lenses.firstWhere((l) => l.lensId == item.lensId);
+          final updatedLens = Lens(
+            lensId: lens.lensId,
+            power: lens.power,
+            coating: lens.coating,
+            category: lens.category,
+            cost: lens.cost,
+            stock: lens.stock - item.lensQuantity!,
+            sellingPrice: lens.sellingPrice,
+            branchId: lens.branchId,
+            shopId: lens.shopId,
+          );
+          await LensHelper.instance.updateLens(updatedLens);
+        }
+      }
+      // --- Save prescription if provided ---
+      final prescription = Prescription(
+        leftPd: double.tryParse(_leftPdController.text) ?? 0,
+        rightPd: double.tryParse(_rightPdController.text) ?? 0,
+        leftAdd: _leftAddController.text.isNotEmpty ? double.tryParse(_leftAddController.text) : null,
+        rightAdd: _rightAddController.text.isNotEmpty ? double.tryParse(_rightAddController.text) : null,
+        leftAxis: _leftAxisController.text.isNotEmpty ? double.tryParse(_leftAxisController.text) : null,
+        rightAxis: _rightAxisController.text.isNotEmpty ? double.tryParse(_rightAxisController.text) : null,
+        leftSph: _leftSphController.text.isNotEmpty ? double.tryParse(_leftSphController.text) : null,
+        rightSph: _rightSphController.text.isNotEmpty ? double.tryParse(_rightSphController.text) : null,
+        rightCyl: _rightCylController.text.isNotEmpty ? double.tryParse(_rightCylController.text) : null,
+        customerId: customerToUse.id!,
+        shopId: 1, // TODO: Replace with actual shopId if available
+        branchId: 1, // TODO: Replace with actual branchId if available
+      );
+      await PrescriptionHelper.instance.createPrescription(prescription);
       if (mounted) {
         Navigator.of(context).pop(bill);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -326,7 +438,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: SingleChildScrollView(
-            child: Form(
+          child: Form( 
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -588,115 +700,322 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       ],
                     ),
                     const SizedBox(height: 24),
+                    // --- Prescription Section ---
+                    Text('Prescription', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _leftPdController,
+                            decoration: const InputDecoration(
+                              labelText: 'Left PD',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rightPdController,
+                            decoration: const InputDecoration(
+                              labelText: 'Right PD',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _leftAddController,
+                            decoration: const InputDecoration(
+                              labelText: 'Left Add',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rightAddController,
+                            decoration: const InputDecoration(
+                              labelText: 'Right Add',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _leftAxisController,
+                            decoration: const InputDecoration(
+                              labelText: 'Left Axis',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rightAxisController,
+                            decoration: const InputDecoration(
+                              labelText: 'Right Axis',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _leftSphController,
+                            decoration: const InputDecoration(
+                              labelText: 'Left Sph',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rightSphController,
+                            decoration: const InputDecoration(
+                              labelText: 'Right Sph',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rightCylController,
+                            decoration: const InputDecoration(
+                              labelText: 'Right Cyl',
+                              border: OutlineInputBorder(),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(child: SizedBox()),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // --- Bill Items Section ---
                     Text('Bill Items', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Card(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.03),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Row(
+                    Column(
+                      children: [
+                        for (int i = 0; i < _billItemStates.length; i++)
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.03),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text('Item #${i + 1}', style: Theme.of(context).textTheme.bodyMedium),
+                                      const Spacer(),
+                                      if (_billItemStates.length > 1)
+                                        IconButton(
+                                          icon: const Icon(Icons.delete, color: Colors.red),
+                                          tooltip: 'Remove Item',
+                                          onPressed: () {
+                                            setState(() {
+                                              _billItemStates.removeAt(i);
+                                            });
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                  // Frame selection row
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: DropdownButtonFormField<String>(
+                                          value: _billItemStates[i].frameBrand,
+                                          decoration: const InputDecoration(labelText: 'Frame Brand', border: OutlineInputBorder()),
+                                          items: _frames.map((f) => f.brand).toSet().map((brand) => DropdownMenuItem<String>(value: brand, child: Text(brand))).toList(),
+                                          onChanged: (v) {
+                                            setState(() {
+                                              _billItemStates[i].frameBrand = v;
+                                              _billItemStates[i].frameSize = null;
+                                              _billItemStates[i].frameColor = null;
+                                              _billItemStates[i].frameId = null;
+                                            });
+                                          },
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 2,
+                                        child: DropdownButtonFormField<String>(
+                                          value: _billItemStates[i].frameSize,
+                                          decoration: const InputDecoration(labelText: 'Size', border: OutlineInputBorder()),
+                                          items: _frames.where((f) => f.brand == _billItemStates[i].frameBrand).map((f) => f.size).toSet().map((size) => DropdownMenuItem<String>(value: size, child: Text(size))).toList(),
+                                          onChanged: _billItemStates[i].frameBrand == null ? null : (v) {
+                                            setState(() {
+                                              _billItemStates[i].frameSize = v;
+                                              _billItemStates[i].frameColor = null;
+                                              _billItemStates[i].frameId = null;
+                                            });
+                                          },
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 2,
+                                        child: DropdownButtonFormField<String>(
+                                          value: _billItemStates[i].frameColor,
+                                          decoration: const InputDecoration(labelText: 'Color', border: OutlineInputBorder()),
+                                          items: _frames.where((f) => f.brand == _billItemStates[i].frameBrand && f.size == _billItemStates[i].frameSize).map((f) => f.color).toSet().map((color) => DropdownMenuItem<String>(value: color, child: Text(color))).toList(),
+                                          onChanged: _billItemStates[i].frameBrand == null || _billItemStates[i].frameSize == null ? null : (v) {
+                                            setState(() {
+                                              _billItemStates[i].frameColor = v;
+                                              final frame = _frames.firstWhereOrNull((f) => f.brand == _billItemStates[i].frameBrand && f.size == _billItemStates[i].frameSize && f.color == v);
+                                              _billItemStates[i].frameId = frame?.frameId;
+                                            });
+                                          },
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        width: 60,
+                                        child: TextFormField(
+                                          enabled: _billItemStates[i].frameId != null,
+                                          initialValue: _billItemStates[i].frameQuantity.toString(),
+                                          decoration: const InputDecoration(labelText: 'Qty'),
+                                          keyboardType: TextInputType.number,
+                                          onChanged: (v) {
+                                            setState(() {
+                                              _billItemStates[i].frameQuantity = int.tryParse(v) ?? 1;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Lens selection row
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: DropdownButtonFormField<String>(
+                                          value: _billItemStates[i].lensPower,
+                                          decoration: const InputDecoration(labelText: 'Lens Power', border: OutlineInputBorder()),
+                                          items: _lenses.map((l) => l.power).toSet().map((power) => DropdownMenuItem<String>(value: power, child: Text(power))).toList(),
+                                          onChanged: (v) {
+                                            setState(() {
+                                              _billItemStates[i].lensPower = v;
+                                              _billItemStates[i].lensCoating = null;
+                                              _billItemStates[i].lensCategory = null;
+                                              _billItemStates[i].lensId = null;
+                                            });
+                                          },
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 2,
+                                        child: DropdownButtonFormField<String>(
+                                          value: _billItemStates[i].lensCoating,
+                                          decoration: const InputDecoration(labelText: 'Coating', border: OutlineInputBorder()),
+                                          items: _lenses.where((l) => l.power == _billItemStates[i].lensPower).map((l) => l.coating).toSet().map((coating) => DropdownMenuItem<String>(value: coating, child: Text(coating))).toList(),
+                                          onChanged: _billItemStates[i].lensPower == null ? null : (v) {
+                                            setState(() {
+                                              _billItemStates[i].lensCoating = v;
+                                              _billItemStates[i].lensCategory = null;
+                                              _billItemStates[i].lensId = null;
+                                            });
+                                          },
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 2,
+                                        child: DropdownButtonFormField<String>(
+                                          value: _billItemStates[i].lensCategory,
+                                          decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                                          items: _lenses.where((l) => l.power == _billItemStates[i].lensPower && l.coating == _billItemStates[i].lensCoating).map((l) => l.category).toSet().map((cat) => DropdownMenuItem<String>(value: cat, child: Text(cat))).toList(),
+                                          onChanged: _billItemStates[i].lensPower == null || _billItemStates[i].lensCoating == null ? null : (v) {
+                                            setState(() {
+                                              _billItemStates[i].lensCategory = v;
+                                              final lens = _lenses.firstWhereOrNull((l) => l.power == _billItemStates[i].lensPower && l.coating == _billItemStates[i].lensCoating && l.category == v);
+                                              _billItemStates[i].lensId = lens?.lensId;
+                                            });
+                                          },
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        width: 60,
+                                        child: TextFormField(
+                                          enabled: _billItemStates[i].lensId != null,
+                                          initialValue: _billItemStates[i].lensQuantity.toString(),
+                                          decoration: const InputDecoration(labelText: 'Qty'),
+                                          keyboardType: TextInputType.number,
+                                          onChanged: (v) {
+                                            setState(() {
+                                              _billItemStates[i].lensQuantity = int.tryParse(v) ?? 1;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        Row(
                           children: [
-                            Expanded(
-                              flex: 2,
-                              child: DropdownButtonFormField<int>(
-                                value: _items.isNotEmpty ? _items[0].frameId : null,
-                                decoration: const InputDecoration(
-                                  labelText: 'Frame',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: [
-                                  const DropdownMenuItem<int>(value: null, child: Text('None')),
-                                  ..._frames.map((frame) => DropdownMenuItem<int>(
-                                        value: frame.frameId,
-                                        child: Text('${frame.brand} (${frame.model})'),
-                                      ))
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    if (_items.isEmpty) {
-                                      _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, frameId: v));
-                                    } else {
-                                      _items[0] = _items[0].copyWith(frameId: v);
-                                    }
-                                  });
-                                },
-                                isExpanded: true,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 2,
-                              child: DropdownButtonFormField<int>(
-                                value: _items.isNotEmpty ? _items[0].lensId : null,
-                                decoration: const InputDecoration(
-                                  labelText: 'Lens',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: [
-                                  const DropdownMenuItem<int>(value: null, child: Text('None')),
-                                  ..._lenses.map((lens) => DropdownMenuItem<int>(
-                                        value: lens.lensId,
-                                        child: Text('${lens.power} ${lens.category}'),
-                                      ))
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    if (_items.isEmpty) {
-                                      _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, lensId: v));
-                                    } else {
-                                      _items[0] = _items[0].copyWith(lensId: v);
-                                    }
-                                  });
-                                },
-                                isExpanded: true,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 1,
-                              child: TextFormField(
-                                initialValue: _items.isNotEmpty && _items[0].frameQuantity != null ? _items[0].frameQuantity.toString() : '',
-                                decoration: const InputDecoration(
-                                  labelText: 'Frame Qty',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                onChanged: (v) {
-                                  setState(() {
-                                    if (_items.isEmpty) {
-                                      _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, frameQuantity: int.tryParse(v)));
-                                    } else {
-                                      _items[0] = _items[0].copyWith(frameQuantity: int.tryParse(v));
-                                    }
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 1,
-                              child: TextFormField(
-                                initialValue: _items.isNotEmpty && _items[0].lensQuantity != null ? _items[0].lensQuantity.toString() : '',
-                                decoration: const InputDecoration(
-                                  labelText: 'Lens Qty',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                onChanged: (v) {
-                                  setState(() {
-                                    if (_items.isEmpty) {
-                                      _items.add(BillItem(billingId: widget.bill?.billingId ?? 0, lensQuantity: int.tryParse(v)));
-                                    } else {
-                                      _items[0] = _items[0].copyWith(lensQuantity: int.tryParse(v));
-                                    }
-                                  });
-                                },
-                              ),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Frame/Lens Item'),
+                              onPressed: () {
+                                setState(() {
+                                  _billItemStates.add(BillItemEditState());
+                                });
+                              },
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     // Payment section
@@ -824,6 +1143,15 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
     _discountController.dispose();
     _fittingChargesController.dispose();
     _grandTotalController.dispose();
+    _leftPdController.dispose();
+    _rightPdController.dispose();
+    _leftAddController.dispose();
+    _rightAddController.dispose();
+    _leftAxisController.dispose();
+    _rightAxisController.dispose();
+    _leftSphController.dispose();
+    _rightSphController.dispose();
+    _rightCylController.dispose();
     super.dispose();
   }
 }

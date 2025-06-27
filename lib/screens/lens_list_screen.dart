@@ -52,7 +52,7 @@ class _LensListScreenState extends State<LensListScreen> {
 
     try {
       final all = await LensHelper.instance.getAllLenses();
-      final lenses = all.where((l) => l.branchId == widget.branchId && l.shopId == widget.shopId).toList();
+      final lenses = all; // Show all lenses, no branch/shop filter
       setState(() {
         _lenses = lenses;
         _filteredLenses = lenses;

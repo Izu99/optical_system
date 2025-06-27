@@ -36,4 +36,15 @@ class PrescriptionHelper {
     final db = await database;
     return await db.delete('prescriptions', where: 'prescription_id = ?', whereArgs: [id]);
   }
+
+  Future<List<Prescription>> getPrescriptionsByCustomerId(int customerId) async {
+    final db = await database;
+    final result = await db.query(
+      'prescriptions',
+      where: 'customer_id = ?',
+      whereArgs: [customerId],
+      orderBy: 'prescription_id ASC',
+    );
+    return result.map((e) => Prescription.fromMap(e)).toList();
+  }
 }

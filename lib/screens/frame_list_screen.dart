@@ -52,7 +52,7 @@ class _FrameListScreenState extends State<FrameListScreen> {
 
     try {
       final all = await FrameHelper.instance.getAllFrames();
-      final frames = all.where((f) => f.branchId == widget.branchId && f.shopId == widget.shopId).toList();
+      final frames = all; // Show all frames, no branch/shop filter
       setState(() {
         _frames = frames;
         _filteredFrames = frames;

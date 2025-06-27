@@ -6,7 +6,7 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 
 // Temporary ModernUIColors class - replace with import above
 class ModernUIColors extends ThemeExtension<ModernUIColors> {
-  final Color glassBg;
+  final Color glassBg; 
   final Color glassStroke;
   final Color hoverBg;
   final Color activeBg;
