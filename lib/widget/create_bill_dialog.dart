@@ -13,7 +13,6 @@ import '../models/employee.dart';
 import '../db/employee_helper.dart';
 import '../models/payment.dart';
 import '../db/payment_helper.dart';
-import '../models/bill_item_edit_state.dart';
 import '../models/prescription.dart';
 import '../db/prescription_helper.dart';
 
@@ -63,7 +62,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
 
   // Remove old single frame/lens selection state
   // Add a list to track BillItem editing state
-  List<BillItemEditState> _billItemStates = [];
+  List<BillItem> _billItemStates = [];
 
   // --- Prescription fields ---
   final TextEditingController _leftPdController = TextEditingController();
@@ -159,23 +158,8 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       _deliveryTimeController.text = bill.deliveryTime ?? '';
       // Set bill items as edit states
       _billItemStates = billItems.isNotEmpty
-        ? billItems.map((item) {
-            final frame = _frames.firstWhereOrNull((f) => f.frameId == item.frameId);
-            final lens = _lenses.firstWhereOrNull((l) => l.lensId == item.lensId);
-            return BillItemEditState(
-              frameId: item.frameId,
-              lensId: item.lensId,
-              frameQuantity: item.frameQuantity ?? 1,
-              lensQuantity: item.lensQuantity ?? 1,
-              frameBrand: frame?.brand,
-              frameSize: frame?.size,
-              frameColor: frame?.color,
-              lensPower: lens?.power,
-              lensCoating: lens?.coating,
-              lensCategory: lens?.category,
-            );
-          }).toList()
-        : [BillItemEditState()];
+        ? billItems
+        : [BillItem(billingId: bill.billingId!)];
       // Set payment fields
       if (payment != null) {
         _advancePaidController.text = payment.advancePaid.toString();
@@ -228,8 +212,44 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       _deliveryTimeController.text = TimeOfDay.now().format(context);
       _invoiceDate = DateTime.now();
       _deliveryDate = DateTime.now();
-      _billItemStates = [ BillItemEditState() ];
+      _billItemStates = [ BillItem(billingId: widget.isEdit ? widget.bill!.billingId! : 0) ];
+      _advancePaidController.text = '';
+      _balanceAmountController.text = '';
+      _totalAmountController.text = '';
+      _discountController.text = '';
+      _fittingChargesController.text = '';
+      _grandTotalController.text = '';
     });
+  }
+
+  void _autoCalculatePaymentFields() {
+    double total = 0;
+    for (final state in _billItemStates) {
+      // Calculate frame price
+      if (state.frameId != null && (state.frameQuantity ?? 0) > 0) {
+        final frame = _frames.firstWhereOrNull((f) => f.frameId == state.frameId);
+        if (frame != null) {
+          total += frame.sellingPrice * (state.frameQuantity ?? 0);
+        }
+      }
+      // Calculate lens price
+      if (state.lensId != null && (state.lensQuantity ?? 0) > 0) {
+        final lens = _lenses.firstWhereOrNull((l) => l.lensId == state.lensId);
+        if (lens != null) {
+          total += lens.sellingPrice * (state.lensQuantity ?? 0);
+        }
+      }
+    }
+    _totalAmountController.text = total.toStringAsFixed(2);
+
+    // Parse user-entered values (treat empty as 0)
+    double discount = double.tryParse(_discountController.text) ?? 0;
+    double fitting = double.tryParse(_fittingChargesController.text) ?? 0;
+    double advance = double.tryParse(_advancePaidController.text) ?? 0;
+    double grandTotal = total - discount + fitting;
+    _grandTotalController.text = grandTotal.toStringAsFixed(2);
+    double balance = grandTotal - advance;
+    _balanceAmountController.text = balance.toStringAsFixed(2);
   }
 
   String? _validateEmail(String? value) {
@@ -295,6 +315,35 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         await DatabaseHelper.instance.updateCustomer(updatedCustomer);
         customerToUse = updatedCustomer;
       }
+      // --- Prescription logic ---
+      int? prescriptionIdToUse;
+      if (widget.isEdit && widget.bill?.prescriptionId != null) {
+        // Update the prescription linked to this bill
+        prescriptionIdToUse = widget.bill!.prescriptionId;
+      }
+      final prescription = Prescription(
+        prescriptionId: prescriptionIdToUse,
+        leftPd: double.tryParse(_leftPdController.text) ?? 0,
+        rightPd: double.tryParse(_rightPdController.text) ?? 0,
+        leftAdd: _leftAddController.text.isNotEmpty ? double.tryParse(_leftAddController.text) : null,
+        rightAdd: _rightAddController.text.isNotEmpty ? double.tryParse(_rightAddController.text) : null,
+        leftAxis: _leftAxisController.text.isNotEmpty ? double.tryParse(_leftAxisController.text) : null,
+        rightAxis: _rightAxisController.text.isNotEmpty ? double.tryParse(_rightAxisController.text) : null,
+        leftSph: _leftSphController.text.isNotEmpty ? double.tryParse(_leftSphController.text) : null,
+        rightSph: _rightSphController.text.isNotEmpty ? double.tryParse(_rightSphController.text) : null,
+        rightCyl: _rightCylController.text.isNotEmpty ? double.tryParse(_rightCylController.text) : null,
+        customerId: customerToUse.id!,
+        shopId: 1, // TODO: Replace with actual shopId if available
+        branchId: 1, // TODO: Replace with actual branchId if available
+      );
+      if (widget.isEdit && prescriptionIdToUse != null) {
+        // Update the existing prescription
+        await PrescriptionHelper.instance.updatePrescription(prescription);
+      } else {
+        // Create a new prescription
+        prescriptionIdToUse = await PrescriptionHelper.instance.createPrescription(prescription);
+      }
+      // --- Bill logic ---
       final bill = Bill(
         billingId: widget.isEdit ? widget.bill!.billingId : null,
         deliveryDate: _deliveryDate,
@@ -303,6 +352,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         deliveryTime: _deliveryTime,
         salesPerson: _selectedSalesPerson!.name ?? _selectedSalesPerson!.email,
         customerId: customerToUse.id!,
+        prescriptionId: prescriptionIdToUse,
       );
       int billingId;
       if (widget.isEdit) {
@@ -317,7 +367,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         billingId = await BillHelper.instance.createBill(bill);
       }
       // Add new items from _billItemStates
-      _items = _billItemStates.map((e) => e.toBillItem(billingId)).toList();
+      _items = _billItemStates;
       for (final item in _items) {
         if ((item.frameId == null && item.lensId == null) || 
             ((item.frameQuantity ?? 0) <= 0 && (item.lensQuantity ?? 0) <= 0)) {
@@ -389,22 +439,6 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
           await LensHelper.instance.updateLens(updatedLens);
         }
       }
-      // --- Save prescription if provided ---
-      final prescription = Prescription(
-        leftPd: double.tryParse(_leftPdController.text) ?? 0,
-        rightPd: double.tryParse(_rightPdController.text) ?? 0,
-        leftAdd: _leftAddController.text.isNotEmpty ? double.tryParse(_leftAddController.text) : null,
-        rightAdd: _rightAddController.text.isNotEmpty ? double.tryParse(_rightAddController.text) : null,
-        leftAxis: _leftAxisController.text.isNotEmpty ? double.tryParse(_leftAxisController.text) : null,
-        rightAxis: _rightAxisController.text.isNotEmpty ? double.tryParse(_rightAxisController.text) : null,
-        leftSph: _leftSphController.text.isNotEmpty ? double.tryParse(_leftSphController.text) : null,
-        rightSph: _rightSphController.text.isNotEmpty ? double.tryParse(_rightSphController.text) : null,
-        rightCyl: _rightCylController.text.isNotEmpty ? double.tryParse(_rightCylController.text) : null,
-        customerId: customerToUse.id!,
-        shopId: 1, // TODO: Replace with actual shopId if available
-        branchId: 1, // TODO: Replace with actual branchId if available
-      );
-      await PrescriptionHelper.instance.createPrescription(prescription);
       if (mounted) {
         Navigator.of(context).pop(bill);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -438,7 +472,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: SingleChildScrollView(
-          child: Form( 
+            child: Form( 
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -830,177 +864,25 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                     Column(
                       children: [
                         for (int i = 0; i < _billItemStates.length; i++)
-                          Card(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.03),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text('Item #${i + 1}', style: Theme.of(context).textTheme.bodyMedium),
-                                      const Spacer(),
-                                      if (_billItemStates.length > 1)
-                                        IconButton(
-                                          icon: const Icon(Icons.delete, color: Colors.red),
-                                          tooltip: 'Remove Item',
-                                          onPressed: () {
-                                            setState(() {
-                                              _billItemStates.removeAt(i);
-                                            });
-                                          },
-                                        ),
-                                    ],
-                                  ),
-                                  // Frame selection row
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Expanded(
-                                        flex: 2,
-                                        child: DropdownButtonFormField<String>(
-                                          value: _billItemStates[i].frameBrand,
-                                          decoration: const InputDecoration(labelText: 'Frame Brand', border: OutlineInputBorder()),
-                                          items: _frames.map((f) => f.brand).toSet().map((brand) => DropdownMenuItem<String>(value: brand, child: Text(brand))).toList(),
-                                          onChanged: (v) {
-                                            setState(() {
-                                              _billItemStates[i].frameBrand = v;
-                                              _billItemStates[i].frameSize = null;
-                                              _billItemStates[i].frameColor = null;
-                                              _billItemStates[i].frameId = null;
-                                            });
-                                          },
-                                          isExpanded: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        flex: 2,
-                                        child: DropdownButtonFormField<String>(
-                                          value: _billItemStates[i].frameSize,
-                                          decoration: const InputDecoration(labelText: 'Size', border: OutlineInputBorder()),
-                                          items: _frames.where((f) => f.brand == _billItemStates[i].frameBrand).map((f) => f.size).toSet().map((size) => DropdownMenuItem<String>(value: size, child: Text(size))).toList(),
-                                          onChanged: _billItemStates[i].frameBrand == null ? null : (v) {
-                                            setState(() {
-                                              _billItemStates[i].frameSize = v;
-                                              _billItemStates[i].frameColor = null;
-                                              _billItemStates[i].frameId = null;
-                                            });
-                                          },
-                                          isExpanded: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        flex: 2,
-                                        child: DropdownButtonFormField<String>(
-                                          value: _billItemStates[i].frameColor,
-                                          decoration: const InputDecoration(labelText: 'Color', border: OutlineInputBorder()),
-                                          items: _frames.where((f) => f.brand == _billItemStates[i].frameBrand && f.size == _billItemStates[i].frameSize).map((f) => f.color).toSet().map((color) => DropdownMenuItem<String>(value: color, child: Text(color))).toList(),
-                                          onChanged: _billItemStates[i].frameBrand == null || _billItemStates[i].frameSize == null ? null : (v) {
-                                            setState(() {
-                                              _billItemStates[i].frameColor = v;
-                                              final frame = _frames.firstWhereOrNull((f) => f.brand == _billItemStates[i].frameBrand && f.size == _billItemStates[i].frameSize && f.color == v);
-                                              _billItemStates[i].frameId = frame?.frameId;
-                                            });
-                                          },
-                                          isExpanded: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      SizedBox(
-                                        width: 60,
-                                        child: TextFormField(
-                                          enabled: _billItemStates[i].frameId != null,
-                                          initialValue: _billItemStates[i].frameQuantity.toString(),
-                                          decoration: const InputDecoration(labelText: 'Qty'),
-                                          keyboardType: TextInputType.number,
-                                          onChanged: (v) {
-                                            setState(() {
-                                              _billItemStates[i].frameQuantity = int.tryParse(v) ?? 1;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  // Lens selection row
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Expanded(
-                                        flex: 2,
-                                        child: DropdownButtonFormField<String>(
-                                          value: _billItemStates[i].lensPower,
-                                          decoration: const InputDecoration(labelText: 'Lens Power', border: OutlineInputBorder()),
-                                          items: _lenses.map((l) => l.power).toSet().map((power) => DropdownMenuItem<String>(value: power, child: Text(power))).toList(),
-                                          onChanged: (v) {
-                                            setState(() {
-                                              _billItemStates[i].lensPower = v;
-                                              _billItemStates[i].lensCoating = null;
-                                              _billItemStates[i].lensCategory = null;
-                                              _billItemStates[i].lensId = null;
-                                            });
-                                          },
-                                          isExpanded: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        flex: 2,
-                                        child: DropdownButtonFormField<String>(
-                                          value: _billItemStates[i].lensCoating,
-                                          decoration: const InputDecoration(labelText: 'Coating', border: OutlineInputBorder()),
-                                          items: _lenses.where((l) => l.power == _billItemStates[i].lensPower).map((l) => l.coating).toSet().map((coating) => DropdownMenuItem<String>(value: coating, child: Text(coating))).toList(),
-                                          onChanged: _billItemStates[i].lensPower == null ? null : (v) {
-                                            setState(() {
-                                              _billItemStates[i].lensCoating = v;
-                                              _billItemStates[i].lensCategory = null;
-                                              _billItemStates[i].lensId = null;
-                                            });
-                                          },
-                                          isExpanded: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        flex: 2,
-                                        child: DropdownButtonFormField<String>(
-                                          value: _billItemStates[i].lensCategory,
-                                          decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
-                                          items: _lenses.where((l) => l.power == _billItemStates[i].lensPower && l.coating == _billItemStates[i].lensCoating).map((l) => l.category).toSet().map((cat) => DropdownMenuItem<String>(value: cat, child: Text(cat))).toList(),
-                                          onChanged: _billItemStates[i].lensPower == null || _billItemStates[i].lensCoating == null ? null : (v) {
-                                            setState(() {
-                                              _billItemStates[i].lensCategory = v;
-                                              final lens = _lenses.firstWhereOrNull((l) => l.power == _billItemStates[i].lensPower && l.coating == _billItemStates[i].lensCoating && l.category == v);
-                                              _billItemStates[i].lensId = lens?.lensId;
-                                            });
-                                          },
-                                          isExpanded: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      SizedBox(
-                                        width: 60,
-                                        child: TextFormField(
-                                          enabled: _billItemStates[i].lensId != null,
-                                          initialValue: _billItemStates[i].lensQuantity.toString(),
-                                          decoration: const InputDecoration(labelText: 'Qty'),
-                                          keyboardType: TextInputType.number,
-                                          onChanged: (v) {
-                                            setState(() {
-                                              _billItemStates[i].lensQuantity = int.tryParse(v) ?? 1;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
+                          _BillItemSelector(
+                            key: ValueKey('bill_item_$i'),
+                            frames: _frames,
+                            lenses: _lenses,
+                            billItem: _billItemStates[i],
+                            onChanged: (updated) {
+                              setState(() {
+                                _billItemStates[i] = updated;
+                                _autoCalculatePaymentFields();
+                              });
+                            },
+                            onRemove: _billItemStates.length > 1
+                                ? () {
+                                    setState(() {
+                                      _billItemStates.removeAt(i);
+                                      _autoCalculatePaymentFields();
+                                    });
+                                  }
+                                : null,
                           ),
                         Row(
                           children: [
@@ -1009,7 +891,7 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                               label: const Text('Add Frame/Lens Item'),
                               onPressed: () {
                                 setState(() {
-                                  _billItemStates.add(BillItemEditState());
+                                  _billItemStates.add(BillItem(billingId: widget.isEdit ? widget.bill!.billingId! : 0));
                                 });
                               },
                             ),
@@ -1043,8 +925,10 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Advance Paid',
                         border: OutlineInputBorder(),
+                        hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
+                      onChanged: (v) => setState(_autoCalculatePaymentFields),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -1052,8 +936,10 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Balance Amount',
                         border: OutlineInputBorder(),
+                        hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
+                      readOnly: true,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -1061,8 +947,10 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Total Amount',
                         border: OutlineInputBorder(),
+                        hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
+                      readOnly: true,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -1070,8 +958,10 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Discount',
                         border: OutlineInputBorder(),
+                        hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
+                      onChanged: (v) => setState(_autoCalculatePaymentFields),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -1079,8 +969,10 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Fitting Charges',
                         border: OutlineInputBorder(),
+                        hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
+                      onChanged: (v) => setState(_autoCalculatePaymentFields),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -1088,8 +980,10 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       decoration: const InputDecoration(
                         labelText: 'Grand Total',
                         border: OutlineInputBorder(),
+                        hintText: '0',
                       ),
                       keyboardType: TextInputType.number,
+                      readOnly: true,
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -1118,13 +1012,13 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                       ],
                     ),
                   ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+                ], // closes Column children
+              ), // closes Column
+            ), // closes Form
+          ), // closes SingleChildScrollView
+        ), // closes Padding
+      ), // closes ConstrainedBox
+    ); // closes Dialog
   }
 
   @override
@@ -1153,5 +1047,234 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
     _rightSphController.dispose();
     _rightCylController.dispose();
     super.dispose();
+  }
+}
+
+// --- Bill Item Selector Widget ---
+class _BillItemSelector extends StatefulWidget {
+  final List<Frame> frames;
+  final List<Lens> lenses;
+  final BillItem billItem;
+  final ValueChanged<BillItem> onChanged;
+  final VoidCallback? onRemove;
+  const _BillItemSelector({Key? key, required this.frames, required this.lenses, required this.billItem, required this.onChanged, this.onRemove}) : super(key: key);
+
+  @override
+  State<_BillItemSelector> createState() => _BillItemSelectorState();
+}
+
+class _BillItemSelectorState extends State<_BillItemSelector> {
+  String? selectedFrameBrand;
+  String? selectedFrameSize;
+  String? selectedFrameColor;
+  String? selectedLensPower;
+  String? selectedLensCoating;
+  String? selectedLensCategory;
+  int? frameQuantity;
+  int? lensQuantity;
+
+  @override
+  void initState() {
+    super.initState();
+    // If editing, prefill dropdowns from selected frame/lens
+    final frame = widget.billItem.frameId != null ? widget.frames.firstWhereOrNull((f) => f.frameId == widget.billItem.frameId) : null;
+    final lens = widget.billItem.lensId != null ? widget.lenses.firstWhereOrNull((l) => l.lensId == widget.billItem.lensId) : null;
+    selectedFrameBrand = frame?.brand;
+    selectedFrameSize = frame?.size;
+    selectedFrameColor = frame?.color;
+    selectedLensPower = lens?.power;
+    selectedLensCoating = lens?.coating;
+    selectedLensCategory = lens?.category;
+    frameQuantity = widget.billItem.frameQuantity;
+    lensQuantity = widget.billItem.lensQuantity;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Frame dropdowns
+    final brands = widget.frames.map((f) => f.brand).toSet().toList();
+    final sizes = selectedFrameBrand == null ? <String>[] : widget.frames.where((f) => f.brand == selectedFrameBrand).map((f) => f.size).toSet().toList();
+    final colors = (selectedFrameBrand == null || selectedFrameSize == null)
+        ? <String>[]
+        : widget.frames.where((f) => f.brand == selectedFrameBrand && f.size == selectedFrameSize).map((f) => f.color).toSet().toList();
+    // Lens dropdowns
+    final powers = widget.lenses.map((l) => l.power).toSet().toList();
+    final coatings = selectedLensPower == null ? <String>[] : widget.lenses.where((l) => l.power == selectedLensPower).map((l) => l.coating).toSet().toList();
+    final categories = (selectedLensPower == null || selectedLensCoating == null)
+        ? <String>[]
+        : widget.lenses.where((l) => l.power == selectedLensPower && l.coating == selectedLensCoating).map((l) => l.category).toSet().toList();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      color: Theme.of(context).colorScheme.primary.withOpacity(0.03),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Text('Item', style: Theme.of(context).textTheme.bodyMedium),
+                const Spacer(),
+                if (widget.onRemove != null)
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    tooltip: 'Remove Item',
+                    onPressed: widget.onRemove,
+                  ),
+              ],
+            ),
+            // Frame selection row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedFrameBrand,
+                    decoration: const InputDecoration(labelText: 'Frame Brand', border: OutlineInputBorder()),
+                    items: brands.map((brand) => DropdownMenuItem<String>(value: brand, child: Text(brand))).toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        selectedFrameBrand = v;
+                        selectedFrameSize = null;
+                        selectedFrameColor = null;
+                        // Clear frameId
+                        widget.onChanged(widget.billItem.copyWith(frameId: null));
+                      });
+                    },
+                    isExpanded: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedFrameSize,
+                    decoration: const InputDecoration(labelText: 'Size', border: OutlineInputBorder()),
+                    items: sizes.map((size) => DropdownMenuItem<String>(value: size, child: Text(size))).toList(),
+                    onChanged: selectedFrameBrand == null ? null : (v) {
+                      setState(() {
+                        selectedFrameSize = v;
+                        selectedFrameColor = null;
+                        widget.onChanged(widget.billItem.copyWith(frameId: null));
+                      });
+                    },
+                    isExpanded: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedFrameColor,
+                    decoration: const InputDecoration(labelText: 'Color', border: OutlineInputBorder()),
+                    items: colors.map((color) => DropdownMenuItem<String>(value: color, child: Text(color))).toList(),
+                    onChanged: selectedFrameBrand == null || selectedFrameSize == null ? null : (v) {
+                      setState(() {
+                        selectedFrameColor = v;
+                        // Set frameId if all selected
+                        final frame = widget.frames.firstWhereOrNull((f) => f.brand == selectedFrameBrand && f.size == selectedFrameSize && f.color == v);
+                        widget.onChanged(widget.billItem.copyWith(frameId: frame?.frameId));
+                      });
+                    },
+                    isExpanded: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 60,
+                  child: TextFormField(
+                    enabled: widget.billItem.frameId != null,
+                    initialValue: frameQuantity?.toString() ?? '',
+                    decoration: const InputDecoration(labelText: 'Qty'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) {
+                      setState(() {
+                        frameQuantity = int.tryParse(v) ?? 1;
+                        widget.onChanged(widget.billItem.copyWith(frameQuantity: frameQuantity));
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Lens selection row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedLensPower,
+                    decoration: const InputDecoration(labelText: 'Lens Power', border: OutlineInputBorder()),
+                    items: powers.map((power) => DropdownMenuItem<String>(value: power, child: Text(power))).toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        selectedLensPower = v;
+                        selectedLensCoating = null;
+                        selectedLensCategory = null;
+                        widget.onChanged(widget.billItem.copyWith(lensId: null));
+                      });
+                    },
+                    isExpanded: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedLensCoating,
+                    decoration: const InputDecoration(labelText: 'Coating', border: OutlineInputBorder()),
+                    items: coatings.map((coating) => DropdownMenuItem<String>(value: coating, child: Text(coating))).toList(),
+                    onChanged: selectedLensPower == null ? null : (v) {
+                      setState(() {
+                        selectedLensCoating = v;
+                        selectedLensCategory = null;
+                        widget.onChanged(widget.billItem.copyWith(lensId: null));
+                      });
+                    },
+                    isExpanded: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: selectedLensCategory,
+                    decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                    items: categories.map((cat) => DropdownMenuItem<String>(value: cat, child: Text(cat))).toList(),
+                    onChanged: selectedLensPower == null || selectedLensCoating == null ? null : (v) {
+                      setState(() {
+                        selectedLensCategory = v;
+                        final lens = widget.lenses.firstWhereOrNull((l) => l.power == selectedLensPower && l.coating == selectedLensCoating && l.category == v);
+                        widget.onChanged(widget.billItem.copyWith(lensId: lens?.lensId));
+                      });
+                    },
+                    isExpanded: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 60,
+                  child: TextFormField(
+                    enabled: widget.billItem.lensId != null,
+                    initialValue: lensQuantity?.toString() ?? '',
+                    decoration: const InputDecoration(labelText: 'Qty'),
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) {
+                      setState(() {
+                        lensQuantity = int.tryParse(v) ?? 1;
+                        widget.onChanged(widget.billItem.copyWith(lensQuantity: lensQuantity));
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

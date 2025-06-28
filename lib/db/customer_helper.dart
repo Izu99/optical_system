@@ -45,6 +45,7 @@ class DatabaseHelper {
         delivery_date TEXT,
         invoice_time TEXT,
         delivery_time TEXT,
+        prescription_id INTEGER,
         FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
       )
     ''');

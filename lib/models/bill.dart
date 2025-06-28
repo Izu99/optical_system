@@ -6,6 +6,7 @@ class Bill {
   final String? deliveryTime;
   final String salesPerson;
   final int customerId;
+  final int? prescriptionId; // NEW FIELD
 
   Bill({
     this.billingId,
@@ -15,6 +16,7 @@ class Bill {
     this.deliveryTime,
     required this.salesPerson,
     required this.customerId,
+    this.prescriptionId,
   });
 
   factory Bill.fromMap(Map<String, dynamic> map) {
@@ -26,6 +28,7 @@ class Bill {
       deliveryTime: map['delivery_time'],
       salesPerson: map['sales_person'],
       customerId: map['customer_id'],
+      prescriptionId: map['prescription_id'], // NEW FIELD
     );
   }
 
@@ -38,6 +41,7 @@ class Bill {
       'delivery_time': deliveryTime,
       'sales_person': salesPerson,
       'customer_id': customerId,
+      'prescription_id': prescriptionId, // NEW FIELD
     };
   }
 }
