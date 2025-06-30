@@ -28,4 +28,14 @@ class LensHelper {
     final db = await database;
     return await db.delete('lenses', where: 'lens_id = ?', whereArgs: [id]);
   }
+
+  // Add: Get lens by ID
+  Future<Lens?> getLensById(int id) async {
+    final db = await database;
+    final result = await db.query('lenses', where: 'lens_id = ?', whereArgs: [id]);
+    if (result.isNotEmpty) {
+      return Lens.fromMap(result.first);
+    }
+    return null;
+  }
 }

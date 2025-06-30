@@ -42,4 +42,14 @@ class FrameHelper {
       whereArgs: [id],
     );
   }
+
+  // Add: Get frame by ID
+  Future<Frame?> getFrameById(int id) async {
+    final db = await instance.database;
+    final result = await db.query('frames', where: 'frame_id = ?', whereArgs: [id]);
+    if (result.isNotEmpty) {
+      return Frame.fromMap(result.first);
+    }
+    return null;
+  }
 }

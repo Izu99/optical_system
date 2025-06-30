@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
+import '../theme.dart';
 import '../models/bill.dart';
 import '../models/bill_item.dart';
 import '../models/customer.dart';
@@ -358,18 +359,114 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       if (widget.isEdit) {
         await BillHelper.instance.updateBill(bill);
         billingId = bill.billingId!;
-        // Delete old items
+
+        // --- Stock adjustment logic for UPDATE ---
         final oldItems = await BillHelper.instance.getBillItems(bill.billingId!);
+
+        // Calculate old quantities
+        final Map<int, int> oldFrameQty = {};
+        final Map<int, int> oldLensQty = {};
+        for (final old in oldItems) {
+          if (old.frameId != null) {
+            oldFrameQty[old.frameId!] = (oldFrameQty[old.frameId!] ?? 0) + (old.frameQuantity ?? 0);
+          }
+          if (old.lensId != null) {
+            oldLensQty[old.lensId!] = (oldLensQty[old.lensId!] ?? 0) + (old.lensQuantity ?? 0);
+          }
+        }
+
+        // Calculate new quantities
+        final Map<int, int> newFrameQty = {};
+        final Map<int, int> newLensQty = {};
+        for (final item in _billItemStates) {
+          if (item.frameId != null && (item.frameQuantity ?? 0) > 0) {
+            newFrameQty[item.frameId!] = (newFrameQty[item.frameId!] ?? 0) + (item.frameQuantity ?? 0);
+          }
+          if (item.lensId != null && (item.lensQuantity ?? 0) > 0) {
+            newLensQty[item.lensId!] = (newLensQty[item.lensId!] ?? 0) + (item.lensQuantity ?? 0);
+          }
+        }
+
+        // Adjust frame stock based on difference
+        final frameIds = {...oldFrameQty.keys, ...newFrameQty.keys};
+        for (final frameId in frameIds) {
+          final oldQ = oldFrameQty[frameId] ?? 0;
+          final newQ = newFrameQty[frameId] ?? 0;
+          final diff = oldQ - newQ;
+          if (diff != 0) {
+            final frame = _frames.firstWhereOrNull((f) => f.frameId == frameId);
+            if (frame != null) {
+              final updatedFrame = copyFrameWithStock(frame, frame.stock + diff);
+              await FrameHelper.instance.updateFrame(updatedFrame);
+              // Update local list for next calculations
+              final index = _frames.indexWhere((f) => f.frameId == frameId);
+              if (index != -1) {
+                _frames[index] = updatedFrame;
+              }
+            }
+          }
+        }
+
+        // Adjust lens stock based on difference
+        final lensIds = {...oldLensQty.keys, ...newLensQty.keys};
+        for (final lensId in lensIds) {
+          final oldQ = oldLensQty[lensId] ?? 0;
+          final newQ = newLensQty[lensId] ?? 0;
+          final diff = oldQ - newQ;
+          if (diff != 0) {
+            final lens = _lenses.firstWhereOrNull((l) => l.lensId == lensId);
+            if (lens != null) {
+              final updatedLens = copyLensWithStock(lens, lens.stock + diff);
+              await LensHelper.instance.updateLens(updatedLens);
+              // Update local list for next calculations
+              final index = _lenses.indexWhere((l) => l.lensId == lensId);
+              if (index != -1) {
+                _lenses[index] = updatedLens;
+              }
+            }
+          }
+        }
+
+        // Remove all old bill items
         for (final old in oldItems) {
           await BillHelper.instance.deleteBillItem(old.billingItemId!);
         }
       } else {
+        // CREATE new bill
         billingId = await BillHelper.instance.createBill(bill);
+
+        // For NEW bills, reduce stock directly
+        for (final item in _billItemStates) {
+          if (item.frameId != null && (item.frameQuantity ?? 0) > 0) {
+            final frame = _frames.firstWhereOrNull((f) => f.frameId == item.frameId);
+            if (frame != null) {
+              final updatedFrame = copyFrameWithStock(frame, frame.stock - item.frameQuantity!);
+              await FrameHelper.instance.updateFrame(updatedFrame);
+              // Update local list
+              final index = _frames.indexWhere((f) => f.frameId == item.frameId);
+              if (index != -1) {
+                _frames[index] = updatedFrame;
+              }
+            }
+          }
+          if (item.lensId != null && (item.lensQuantity ?? 0) > 0) {
+            final lens = _lenses.firstWhereOrNull((l) => l.lensId == item.lensId);
+            if (lens != null) {
+              final updatedLens = copyLensWithStock(lens, lens.stock - item.lensQuantity!);
+              await LensHelper.instance.updateLens(updatedLens);
+              // Update local list
+              final index = _lenses.indexWhere((l) => l.lensId == item.lensId);
+              if (index != -1) {
+                _lenses[index] = updatedLens;
+              }
+            }
+          }
+        }
       }
-      // Add new items from _billItemStates
+      // Add new items from _billItemStates (for both CREATE and UPDATE)
       _items = _billItemStates;
       for (final item in _items) {
-        if ((item.frameId == null && item.lensId == null) || 
+        if ((item.frameId == null && item.lensId == null) ||
             ((item.frameQuantity ?? 0) <= 0 && (item.lensQuantity ?? 0) <= 0)) {
           continue;
         }
@@ -404,41 +501,6 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
       } else {
         await PaymentHelper.instance.createPayment(payment);
       }
-      // --- After bill item creation, reduce stock ---
-      for (final item in _items) {
-        if (item.frameId != null && item.frameQuantity != null && item.frameQuantity! > 0) {
-          final frame = _frames.firstWhere((f) => f.frameId == item.frameId);
-          final updatedFrame = Frame(
-            frameId: frame.frameId,
-            brand: frame.brand,
-            size: frame.size,
-            wholeSalePrice: frame.wholeSalePrice,
-            color: frame.color,
-            model: frame.model,
-            sellingPrice: frame.sellingPrice,
-            stock: frame.stock - item.frameQuantity!,
-            branchId: frame.branchId,
-            shopId: frame.shopId,
-            imagePath: frame.imagePath,
-          );
-          await FrameHelper.instance.updateFrame(updatedFrame);
-        }
-        if (item.lensId != null && item.lensQuantity != null && item.lensQuantity! > 0) {
-          final lens = _lenses.firstWhere((l) => l.lensId == item.lensId);
-          final updatedLens = Lens(
-            lensId: lens.lensId,
-            power: lens.power,
-            coating: lens.coating,
-            category: lens.category,
-            cost: lens.cost,
-            stock: lens.stock - item.lensQuantity!,
-            sellingPrice: lens.sellingPrice,
-            branchId: lens.branchId,
-            shopId: lens.shopId,
-          );
-          await LensHelper.instance.updateLens(updatedLens);
-        }
-      }
       if (mounted) {
         Navigator.of(context).pop(bill);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -465,560 +527,519 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final pageTheme = Theme.of(context).extension<AppPageTheme>();
+    final dialogWidth = 1200.0;
+    final sectionPadding = const EdgeInsets.all(16.0);
+    final sectionBg = Theme.of(context).colorScheme.surface;
+    final sectionRadius = BorderRadius.circular(12);
+    final labelStyle = Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold);
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: pageTheme?.dialogRadius ?? BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600),
+        constraints: BoxConstraints(maxWidth: dialogWidth),
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: SingleChildScrollView(
-            child: Form( 
-              key: _formKey,
+          padding: pageTheme?.dialogPadding ?? const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: SizedBox(
+              width: dialogWidth,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_isLoading)
-                    const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 48),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
+                    const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 48), child: CircularProgressIndicator()))
                   else ...[
                     Text(
                       widget.isEdit ? 'Edit Bill' : 'Add Bill',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
-                    // Customer section
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    const SizedBox(height: 16),
+                    // --- Main Grid Layout ---
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Autocomplete<Customer>(
-                          displayStringForOption: (c) => c.name,
-                          optionsBuilder: (TextEditingValue textEditingValue) {
-                            final q = textEditingValue.text.toLowerCase();
-                            final filtered = _customers.where((c) =>
-                              c.name.toLowerCase().contains(q) ||
-                              c.email.toLowerCase().contains(q) ||
-                              c.phoneNumber.toLowerCase().contains(q)
-                            ).toList();
-                            return filtered.take(4);
-                          },
-                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                            // Sync with our internal controller
-                            if (controller.text != _customerSearchController.text) {
-                              controller.text = _customerSearchController.text;
-                            }
-                            
-                            return TextFormField(
-                              controller: controller,
-                              focusNode: focusNode,
-                              decoration: InputDecoration(
-                                labelText: 'Customer Name',
-                                border: const OutlineInputBorder(),
-                                suffixIcon: controller.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      tooltip: 'Clear',
-                                      onPressed: () {
+                        // --- Left Column: Customer + Items ---
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            children: [
+                              // Customer Section
+                              Container(
+                                padding: sectionPadding,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: sectionBg,
+                                  borderRadius: sectionRadius,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Customer Details', style: labelStyle),
+                                    const SizedBox(height: 8),
+                                    // Customer search and auto-fill
+                                    Autocomplete<Customer>(
+                                      displayStringForOption: (c) => c.name,
+                                      optionsBuilder: (TextEditingValue textEditingValue) {
+                                        final q = textEditingValue.text.toLowerCase();
+                                        final filtered = _customers.where((c) =>
+                                          c.name.toLowerCase().contains(q) ||
+                                          c.email.toLowerCase().contains(q) ||
+                                          c.phoneNumber.toLowerCase().contains(q)
+                                        ).toList();
+                                        return filtered.take(4);
+                                      },
+                                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                        // Sync with our internal controller
+                                        if (controller.text != _customerSearchController.text) {
+                                          controller.text = _customerSearchController.text;
+                                        }
+                                        
+                                        return TextFormField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          decoration: InputDecoration(
+                                            labelText: 'Customer Name',
+                                            border: const OutlineInputBorder(),
+                                            suffixIcon: controller.text.isNotEmpty
+                                              ? IconButton(
+                                                  icon: const Icon(Icons.clear),
+                                                  tooltip: 'Clear',
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      controller.clear();
+                                                      _customerSearchController.clear();
+                                                      _selectedCustomer = null;
+                                                      _customerNameController.clear();
+                                                      _customerEmailController.clear();
+                                                      _customerPhoneController.clear();
+                                                      _customerAddressController.clear();
+                                                    });
+                                                  },
+                                                )
+                                              : null,
+                                          ),
+                                          validator: (v) => _validateRequired(v, 'Customer Name'),
+                                          onChanged: (v) {
+                                            setState(() {
+                                              _customerSearchController.text = v;
+                                              _customerNameController.text = v;
+                                              
+                                              final found = _customers.firstWhere(
+                                                (c) => c.name.toLowerCase() == v.toLowerCase(),
+                                                orElse: () => Customer(id: 0, name: '', email: '', phoneNumber: '', address: '', createdAt: DateTime.now()),
+                                              );
+                                              
+                                              if (found.id != 0) {
+                                                _selectedCustomer = found;
+                                                _customerEmailController.text = found.email;
+                                                _customerPhoneController.text = found.phoneNumber;
+                                                _customerAddressController.text = found.address;
+                                              } else {
+                                                _selectedCustomer = null;
+                                                if (v.isEmpty) {
+                                                  _customerEmailController.clear();
+                                                  _customerPhoneController.clear();
+                                                  _customerAddressController.clear();
+                                                }
+                                              }
+                                            });
+                                          },
+                                        );
+                                      },
+                                      onSelected: (Customer selection) {
                                         setState(() {
-                                          controller.clear();
-                                          _customerSearchController.clear();
-                                          _selectedCustomer = null;
-                                          _customerNameController.clear();
-                                          _customerEmailController.clear();
-                                          _customerPhoneController.clear();
-                                          _customerAddressController.clear();
+                                          _selectedCustomer = selection;
+                                          _customerSearchController.text = selection.name;
+                                          _customerNameController.text = selection.name;
+                                          _customerEmailController.text = selection.email;
+                                          _customerPhoneController.text = selection.phoneNumber;
+                                          _customerAddressController.text = selection.address;
                                         });
                                       },
-                                    )
-                                  : null,
-                              ),
-                              validator: (v) => _validateRequired(v, 'Customer Name'),
-                              onChanged: (v) {
-                                setState(() {
-                                  _customerSearchController.text = v;
-                                  _customerNameController.text = v;
-                                  
-                                  final found = _customers.firstWhere(
-                                    (c) => c.name.toLowerCase() == v.toLowerCase(),
-                                    orElse: () => Customer(id: 0, name: '', email: '', phoneNumber: '', address: '', createdAt: DateTime.now()),
-                                  );
-                                  
-                                  if (found.id != 0) {
-                                    _selectedCustomer = found;
-                                    _customerEmailController.text = found.email;
-                                    _customerPhoneController.text = found.phoneNumber;
-                                    _customerAddressController.text = found.address;
-                                  } else {
-                                    _selectedCustomer = null;
-                                    if (v.isEmpty) {
-                                      _customerEmailController.clear();
-                                      _customerPhoneController.clear();
-                                      _customerAddressController.clear();
-                                    }
-                                  }
-                                });
-                              },
-                            );
-                          },
-                          onSelected: (Customer selection) {
-                            setState(() {
-                              _selectedCustomer = selection;
-                              _customerSearchController.text = selection.name;
-                              _customerNameController.text = selection.name;
-                              _customerEmailController.text = selection.email;
-                              _customerPhoneController.text = selection.phoneNumber;
-                              _customerAddressController.text = selection.address;
-                            });
-                          },
-                          optionsViewBuilder: (context, onSelected, options) {
-                            return Align(
-                              alignment: Alignment.topLeft,
-                              child: Material(
-                                elevation: 4.0,
-                                child: SizedBox(
-                                  height: 200,
-                                  child: ListView.builder(
-                                    padding: EdgeInsets.zero,
-                                    itemCount: options.length,
-                                    itemBuilder: (context, index) {
-                                      final option = options.elementAt(index);
-                                      return ListTile(
-                                        title: Text(option.name),
-                                        subtitle: Text(option.phoneNumber),
-                                        onTap: () => onSelected(option),
-                                      );
-                                    },
-                                  ),
+                                      optionsViewBuilder: (context, onSelected, options) {
+                                        return Align(
+                                          alignment: Alignment.topLeft,
+                                          child: Material(
+                                            elevation: 4.0,
+                                            child: SizedBox(
+                                              height: 200,
+                                              child: ListView.builder(
+                                                padding: EdgeInsets.zero,
+                                                itemCount: options.length,
+                                                itemBuilder: (context, index) {
+                                                  final option = options.elementAt(index);
+                                                  return ListTile(
+                                                    title: Text(option.name),
+                                                    subtitle: Text(option.phoneNumber),
+                                                    onTap: () => onSelected(option),
+                                                  );
+                                                },
+                                              ),
+                                            ), // <-- this closes SizedBox
+                                          ), // <-- this closes Material
+                                        ); // <-- this closes Align
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _customerEmailController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Email',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      validator: _validateEmail,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _customerPhoneController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Phone Number',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      validator: _validatePhone,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _customerAddressController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Address',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      validator: (v) => _validateRequired(v, 'Address'),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _customerEmailController,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: _validateEmail,
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _customerPhoneController,
-                          decoration: const InputDecoration(
-                            labelText: 'Phone Number',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: _validatePhone,
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _customerAddressController,
-                          decoration: const InputDecoration(
-                            labelText: 'Address',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) => _validateRequired(v, 'Address'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // --- Sales Person Autocomplete ---
-                    Autocomplete<Employee>(
-                      displayStringForOption: (e) => e.name ?? e.email,
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        final q = textEditingValue.text.toLowerCase();
-                        return _employees.where((e) =>
-                          (e.name?.toLowerCase().contains(q) ?? false) ||
-                          e.email.toLowerCase().contains(q)
-                        ).toList();
-                      },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        if (_selectedSalesPerson != null && controller.text != (_selectedSalesPerson!.name ?? _selectedSalesPerson!.email)) {
-                          controller.text = _selectedSalesPerson!.name ?? _selectedSalesPerson!.email;
-                        }
-                        return TextFormField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          decoration: const InputDecoration(
-                            labelText: 'Sales Person',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (v) => _selectedSalesPerson == null ? 'Please select a sales person' : null,
-                          readOnly: false,
-                        );
-                      },
-                      onSelected: (Employee selection) {
-                        setState(() {
-                          _selectedSalesPerson = selection;
-                        });
-                      },
-                      optionsViewBuilder: (context, onSelected, options) {
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4.0,
-                            child: SizedBox(
-                              height: 200,
-                              child: ListView.builder(
-                                padding: EdgeInsets.zero,
-                                itemCount: options.length,
-                                itemBuilder: (context, index) {
-                                  final option = options.elementAt(index);
-                                  return ListTile(
-                                    title: Text(option.name ?? option.email),
-                                    subtitle: Text(option.email),
-                                    onTap: () => onSelected(option),
-                                  );
-                                },
+                              // Bill Items Section
+                              Container(
+                                padding: sectionPadding,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: sectionBg,
+                                  borderRadius: sectionRadius,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Bill Items', style: labelStyle),
+                                    const SizedBox(height: 8),
+                                    Column(
+                                      children: [
+                                        for (int i = 0; i < _billItemStates.length; i++)
+                                          _BillItemSelector(
+                                            key: ValueKey('bill_item_$i'),
+                                            frames: _frames,
+                                            lenses: _lenses,
+                                            billItem: _billItemStates[i],
+                                            onChanged: (updated) {
+                                              setState(() {
+                                                _billItemStates[i] = updated;
+                                                _autoCalculatePaymentFields();
+                                              });
+                                            },
+                                            onRemove: _billItemStates.length > 1
+                                                ? () {
+                                                    setState(() {
+                                                      _billItemStates.removeAt(i);
+                                                      _autoCalculatePaymentFields();
+                                                    });
+                                                  }
+                                                : null,
+                                          ),
+                                        Row(
+                                          children: [
+                                            ElevatedButton.icon(
+                                              icon: const Icon(Icons.add),
+                                              label: const Text('Add Frame/Lens Item'),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _billItemStates.add(BillItem(billingId: widget.isEdit ? widget.bill!.billingId! : 0));
+                                                });
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InputDatePickerFormField(
-                            initialDate: _invoiceDate ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                            fieldLabelText: 'Invoice Date',
-                            onDateSubmitted: (d) => _invoiceDate = d,
+                            ],
                           ),
                         ),
                         const SizedBox(width: 16),
+                        // --- Right Column: Prescription + Payment ---
                         Expanded(
-                          child: InputDatePickerFormField(
-                            initialDate: _deliveryDate ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                            fieldLabelText: 'Delivery Date',
-                            onDateSubmitted: (d) => _deliveryDate = d,
+                          flex: 2,
+                          child: Column(
+                            children: [
+                              // Prescription Section
+                              Container(
+                                padding: sectionPadding,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: sectionBg,
+                                  borderRadius: sectionRadius,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Prescription', style: labelStyle),
+                                    const SizedBox(height: 8),
+                                    // --- Prescription Grid: 3 fields per row ---
+                                    Table(
+                                      columnWidths: const {
+                                        0: FlexColumnWidth(1),
+                                        1: FlexColumnWidth(1),
+                                        2: FlexColumnWidth(1),
+                                      },
+                                      children: [
+                                        TableRow(children: [
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _leftSphController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Left Sph',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _leftAxisController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Left Axis',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _leftAddController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Left Add',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                        ]),
+                                        TableRow(children: [
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _rightSphController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Right Sph',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _rightAxisController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Right Axis',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _rightAddController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Right Add',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                        ]),
+                                        TableRow(children: [
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _leftPdController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Left PD',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _rightPdController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Right PD',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                            child: TextFormField(
+                                              controller: _rightCylController,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Right Cyl',
+                                                border: OutlineInputBorder(),
+                                              ),
+                                              keyboardType: TextInputType.number,
+                                            ),
+                                          ),
+                                        ]),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Payment Section
+                              Container(
+                                padding: sectionPadding,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: sectionBg,
+                                  borderRadius: sectionRadius,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Payment Details', style: labelStyle),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: _paymentType,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Payment Type',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: _paymentTypes.map((type) => DropdownMenuItem<String>(
+                                        value: type,
+                                        child: Text(type),
+                                      )).toList(),
+                                      onChanged: (v) {
+                                        setState(() {
+                                          _paymentType = v!;
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _advancePaidController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Advance Paid',
+                                        border: OutlineInputBorder(),
+                                        hintText: '0',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      onChanged: (v) => setState(_autoCalculatePaymentFields),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _balanceAmountController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Balance Amount',
+                                        border: OutlineInputBorder(),
+                                        hintText: '0',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      readOnly: true,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _totalAmountController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Total Amount',
+                                        border: OutlineInputBorder(),
+                                        hintText: '0',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      readOnly: true,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _discountController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Discount',
+                                        border: OutlineInputBorder(),
+                                        hintText: '0',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      onChanged: (v) => setState(_autoCalculatePaymentFields),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _fittingChargesController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Fitting Charges',
+                                        border: OutlineInputBorder(),
+                                        hintText: '0',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      onChanged: (v) => setState(_autoCalculatePaymentFields),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _grandTotalController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Grand Total',
+                                        border: OutlineInputBorder(),
+                                        hintText: '0',
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      readOnly: true,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
+                    // --- Action Buttons ---
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _invoiceTimeController,
-                            decoration: const InputDecoration(
-                              labelText: 'Invoice Time',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (v) => _invoiceTime = v,
+                        OutlinedButton(
+                          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           ),
+                          child: const Text('Cancel'),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _deliveryTimeController,
-                            decoration: const InputDecoration(
-                              labelText: 'Delivery Time',
-                              border: OutlineInputBorder(),
-                            ),
-                            onChanged: (v) => _deliveryTime = v,
+                        const SizedBox(width: 12),
+                        ElevatedButton(
+                          onPressed: _isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    // --- Prescription Section ---
-                    Text('Prescription', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _leftPdController,
-                            decoration: const InputDecoration(
-                              labelText: 'Left PD',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _rightPdController,
-                            decoration: const InputDecoration(
-                              labelText: 'Right PD',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _leftAddController,
-                            decoration: const InputDecoration(
-                              labelText: 'Left Add',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _rightAddController,
-                            decoration: const InputDecoration(
-                              labelText: 'Right Add',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _leftAxisController,
-                            decoration: const InputDecoration(
-                              labelText: 'Left Axis',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _rightAxisController,
-                            decoration: const InputDecoration(
-                              labelText: 'Right Axis',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _leftSphController,
-                            decoration: const InputDecoration(
-                              labelText: 'Left Sph',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _rightSphController,
-                            decoration: const InputDecoration(
-                              labelText: 'Right Sph',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _rightCylController,
-                            decoration: const InputDecoration(
-                              labelText: 'Right Cyl',
-                              border: OutlineInputBorder(),
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(child: SizedBox()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // --- Bill Items Section ---
-                    Text('Bill Items', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Column(
-                      children: [
-                        for (int i = 0; i < _billItemStates.length; i++)
-                          _BillItemSelector(
-                            key: ValueKey('bill_item_$i'),
-                            frames: _frames,
-                            lenses: _lenses,
-                            billItem: _billItemStates[i],
-                            onChanged: (updated) {
-                              setState(() {
-                                _billItemStates[i] = updated;
-                                _autoCalculatePaymentFields();
-                              });
-                            },
-                            onRemove: _billItemStates.length > 1
-                                ? () {
-                                    setState(() {
-                                      _billItemStates.removeAt(i);
-                                      _autoCalculatePaymentFields();
-                                    });
-                                  }
-                                : null,
-                          ),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add Frame/Lens Item'),
-                              onPressed: () {
-                                setState(() {
-                                  _billItemStates.add(BillItem(billingId: widget.isEdit ? widget.bill!.billingId! : 0));
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Payment section
-                    Text('Payment Details', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _paymentType,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment Type',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _paymentTypes.map((type) => DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(type),
-                      )).toList(),
-                      onChanged: (v) {
-                        setState(() {
-                          _paymentType = v!;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _advancePaidController,
-                      decoration: const InputDecoration(
-                        labelText: 'Advance Paid',
-                        border: OutlineInputBorder(),
-                        hintText: '0',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) => setState(_autoCalculatePaymentFields),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _balanceAmountController,
-                      decoration: const InputDecoration(
-                        labelText: 'Balance Amount',
-                        border: OutlineInputBorder(),
-                        hintText: '0',
-                      ),
-                      keyboardType: TextInputType.number,
-                      readOnly: true,
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _totalAmountController,
-                      decoration: const InputDecoration(
-                        labelText: 'Total Amount',
-                        border: OutlineInputBorder(),
-                        hintText: '0',
-                      ),
-                      keyboardType: TextInputType.number,
-                      readOnly: true,
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _discountController,
-                      decoration: const InputDecoration(
-                        labelText: 'Discount',
-                        border: OutlineInputBorder(),
-                        hintText: '0',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) => setState(_autoCalculatePaymentFields),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _fittingChargesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Fitting Charges',
-                        border: OutlineInputBorder(),
-                        hintText: '0',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) => setState(_autoCalculatePaymentFields),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _grandTotalController,
-                      decoration: const InputDecoration(
-                        labelText: 'Grand Total',
-                        border: OutlineInputBorder(),
-                        hintText: '0',
-                      ),
-                      keyboardType: TextInputType.number,
-                      readOnly: true,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Cancel'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                : Text(widget.isEdit ? 'Update Bill' : 'Create Bill'),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                              : Text(widget.isEdit ? 'Update Bill' : 'Create Bill'),
                         ),
                       ],
                     ),
                   ],
-                ], // closes Column children
-              ), // closes Column
-            ), // closes Form
-          ), // closes SingleChildScrollView
-        ), // closes Padding
-      ), // closes ConstrainedBox
-    ); // closes Dialog
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -1174,7 +1195,8 @@ class _BillItemSelectorState extends State<_BillItemSelector> {
                         selectedFrameColor = v;
                         // Set frameId if all selected
                         final frame = widget.frames.firstWhereOrNull((f) => f.brand == selectedFrameBrand && f.size == selectedFrameSize && f.color == v);
-                        widget.onChanged(widget.billItem.copyWith(frameId: frame?.frameId));
+                        int qty = frameQuantity ?? 1;
+                        widget.onChanged(widget.billItem.copyWith(frameId: frame?.frameId, frameQuantity: qty));
                       });
                     },
                     isExpanded: true,
@@ -1185,7 +1207,7 @@ class _BillItemSelectorState extends State<_BillItemSelector> {
                   width: 60,
                   child: TextFormField(
                     enabled: widget.billItem.frameId != null,
-                    initialValue: frameQuantity?.toString() ?? '',
+                    initialValue: (frameQuantity ?? 1).toString(), // Default to 1 if null
                     decoration: const InputDecoration(labelText: 'Qty'),
                     keyboardType: TextInputType.number,
                     onChanged: (v) {
@@ -1248,7 +1270,8 @@ class _BillItemSelectorState extends State<_BillItemSelector> {
                       setState(() {
                         selectedLensCategory = v;
                         final lens = widget.lenses.firstWhereOrNull((l) => l.power == selectedLensPower && l.coating == selectedLensCoating && l.category == v);
-                        widget.onChanged(widget.billItem.copyWith(lensId: lens?.lensId));
+                        int qty = lensQuantity ?? 1;
+                        widget.onChanged(widget.billItem.copyWith(lensId: lens?.lensId, lensQuantity: qty));
                       });
                     },
                     isExpanded: true,
@@ -1259,7 +1282,7 @@ class _BillItemSelectorState extends State<_BillItemSelector> {
                   width: 60,
                   child: TextFormField(
                     enabled: widget.billItem.lensId != null,
-                    initialValue: lensQuantity?.toString() ?? '',
+                    initialValue: (lensQuantity ?? 1).toString(), // Default to 1 if null
                     decoration: const InputDecoration(labelText: 'Qty'),
                     keyboardType: TextInputType.number,
                     onChanged: (v) {
@@ -1273,8 +1296,67 @@ class _BillItemSelectorState extends State<_BillItemSelector> {
               ],
             ),
           ],
-        ),
+                  ),
       ),
     );
   }
+       
 }
+
+// Utility: create a copy of Frame with new stock
+Frame copyFrameWithStock(Frame frame, int newStock) {
+  return Frame(
+    frameId: frame.frameId,
+    brand: frame.brand,
+    size: frame.size,
+    wholeSalePrice: frame.wholeSalePrice,
+    color: frame.color,
+    model: frame.model,
+    sellingPrice: frame.sellingPrice,
+    stock: newStock,
+    branchId: frame.branchId,
+    shopId: frame.shopId,
+    imagePath: frame.imagePath,
+  );
+}
+// Utility: create a copy of Lens with new stock
+Lens copyLensWithStock(Lens lens, int newStock) {
+  return Lens(
+    lensId: lens.lensId,
+    power: lens.power,
+    coating: lens.coating,
+    category: lens.category,
+    cost: lens.cost,
+    stock: newStock,
+    sellingPrice: lens.sellingPrice,
+    branchId: lens.branchId,
+    shopId: lens.shopId,
+  );
+}
+
+// Utility function to restore stock for all items in a bill (for deletion)
+Future<void> restoreStockForBill(int billingId) async {
+  // Get all bill items for this bill
+  final billItems = await BillHelper.instance.getBillItems(billingId);
+  // Restore frame stock
+  for (final item in billItems) {
+    if (item.frameId != null && item.frameQuantity != null && item.frameQuantity! > 0) {
+      final frame = await FrameHelper.instance.getFrameById(item.frameId!);
+      if (frame != null) {
+        final updatedFrame = copyFrameWithStock(frame, frame.stock + item.frameQuantity!);
+        await FrameHelper.instance.updateFrame(updatedFrame);
+      }
+    }
+    if (item.lensId != null && item.lensQuantity != null && item.lensQuantity! > 0) {
+      final lens = await LensHelper.instance.getLensById(item.lensId!);
+      if (lens != null) {
+        final updatedLens = copyLensWithStock(lens, lens.stock + item.lensQuantity!);
+        await LensHelper.instance.updateLens(updatedLens);
+      }
+    }
+  }
+}
+
+// Example usage: Call this before deleting a bill
+// await restoreStockForBill(bill.billingId!);
+// await BillHelper.instance.deleteBill(bill.billingId!);
