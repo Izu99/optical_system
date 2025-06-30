@@ -424,7 +424,7 @@ class Sidebar extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      userRole ?? 'Role',
+                      userRole == 'S/Person' ? 'Sales Person' : (userRole ?? 'Role'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurface.withOpacity(0.6),
                       ),

@@ -14,6 +14,7 @@ import './bill_list_screen.dart';
 import './payment_list_screen.dart';
 import './dashboard_screen.dart';
 import './profile_screen.dart';
+import '../models/employee.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -45,8 +46,7 @@ class MainScreenState extends State<MainScreen> {
     super.initState();
     _checkShopExists();
     if (MainScreen._initialUser != null && MainScreen._initialUserType != null) {
-      _currentUser = MainScreen._initialUser;
-      _currentUserType = MainScreen._initialUserType!;
+      setUser(MainScreen._initialUser, MainScreen._initialUserType!);
     }
   }
 
@@ -160,6 +160,18 @@ class MainScreenState extends State<MainScreen> {
     setState(() {
       _currentUser = user;
       _currentUserType = userType;
+      if (userType == 'admin') {
+        _userName = user.username ?? user.name ?? user.email ?? 'Admin';
+        _userRole = 'Admin';
+      } else if (userType == 'employee') {
+        _userName = user.name?.isNotEmpty == true ? user.name : user.email;
+        _userRole = (user.role != null && user.role.isNotEmpty)
+          ? Employee.displayRole(user.role)
+          : 'Admin';
+      } else {
+        _userName = 'Unknown';
+        _userRole = 'Admin';
+      }
     });
   }
 
