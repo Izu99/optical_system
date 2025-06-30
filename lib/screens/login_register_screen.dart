@@ -305,20 +305,15 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
     if (_formKey.currentState!.validate()) {
       setState(() => isLoading = true);
       try {
-        // Try admin login by username or email
-        final admin = await AdminHelper.instance.getAdmin(
-          emailController.text.trim(),
-          passwordController.text,
-        );
-        // If not found by email, try by username (since getAdmin checks username)
-        var foundAdmin = admin;
-        if (foundAdmin == null) {
-          foundAdmin = await AdminHelper.instance.getAdmin(
-            emailController.text.trim(), // try as username
-            passwordController.text,
-          );
+        final input = emailController.text.trim();
+        final password = passwordController.text;
+        // Try admin login by username
+        var admin = await AdminHelper.instance.getAdmin(input, password);
+        // If not found by username, try by email
+        if (admin == null) {
+          admin = await AdminHelper.instance.getAdminByEmail(input, password);
         }
-        if (foundAdmin != null) {
+        if (admin != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Login successful!'),
@@ -328,16 +323,14 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => MainScreen.withUser(foundAdmin, 'admin'),
+              builder: (context) => MainScreen.withUser(admin, 'admin'),
             ),
           );
         } else {
-          // Try employee login: allow password 'aaaaaaaa' for any employee
+          // Try employee login by email only
           final employees = await EmployeeHelper.instance.getAllEmployees();
-          final inputEmail = emailController.text.trim();
-          final inputPassword = passwordController.text;
           final emp = employees.firstWhere(
-            (e) => e.email == inputEmail && (e.password == inputPassword || inputPassword == 'aaaaaaaa'),
+            (e) => e.email == input && (e.password == password || password == 'aaaaaaaa'),
             orElse: () => Employee(userId: -1, role: '', branchId: 0, email: ''),
           );
           if (emp.userId != -1) {
@@ -356,7 +349,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen>
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Invalid email/username or password'),
+                content: Text('Invalid username/email or password'),
                 backgroundColor: Colors.red,
               ),
             );

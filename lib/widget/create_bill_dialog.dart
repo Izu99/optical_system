@@ -708,6 +708,27 @@ class _CreateBillDialogState extends State<CreateBillDialog> {
                                       ),
                                       validator: (v) => _validateRequired(v, 'Address'),
                                     ),
+                                    const SizedBox(height: 16),
+                                    // --- Sales Person Dropdown ---
+                                    DropdownButtonFormField<Employee>(
+                                      value: _selectedSalesPerson,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Sales Person',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      isExpanded: true,
+                                      items: _employees.map((e) => DropdownMenuItem<Employee>(
+                                        value: e,
+                                        child: Text(e.name?.isNotEmpty == true ? e.name! : e.email),
+                                      )).toList(),
+                                      onChanged: (emp) {
+                                        setState(() {
+                                          _selectedSalesPerson = emp;
+                                          _salesPersonController.text = emp?.name ?? emp?.email ?? '';
+                                        });
+                                      },
+                                      validator: (v) => v == null ? 'Sales Person is required' : null,
+                                    ),
                                   ],
                                 ),
                               ),

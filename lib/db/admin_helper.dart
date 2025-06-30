@@ -54,6 +54,26 @@ class AdminHelper {
     return null;
   }
 
+  Future<Admin?> getAdminByEmail(String email, String password) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'admins',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+      limit: 1,
+    );
+    if (result.isNotEmpty) {
+      final map = result.first;
+      return Admin(
+        adminId: map['adminId'] as int?,
+        username: map['username'] as String,
+        email: map['email'] as String,
+        password: map['password'] as String,
+      );
+    }
+    return null;
+  }
+
   Future<Admin?> getAdminById(int adminId) async {
     final db = await instance.database;
     final result = await db.query(
