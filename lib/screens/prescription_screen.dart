@@ -113,6 +113,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pageTheme = Theme.of(context).extension<AppPageTheme>();
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
@@ -182,20 +183,20 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                             children: [
                               // Table Header
                               Container(
-                                padding: const EdgeInsets.all(0),
+                                padding: pageTheme?.tableHeaderPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).extension<AppPageTheme>()?.tableHeaderBg ?? Theme.of(context).colorScheme.primary,
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(12),
-                                    topRight: Radius.circular(12),
+                                  color: pageTheme?.tableHeaderBg ?? Theme.of(context).colorScheme.primary,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: pageTheme != null ? pageTheme.cardRadius.topLeft : const Radius.circular(12),
+                                    topRight: pageTheme != null ? pageTheme.cardRadius.topRight : const Radius.circular(12),
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     SizedBox(
-                                      width: 40,
+                                      width: pageTheme?.serialWidth ?? 40,
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: pageTheme?.serialPadding ?? const EdgeInsets.symmetric(vertical: 16),
                                         child: Text(
                                           '#',
                                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -209,7 +210,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                     Expanded(
                                       flex: 2,
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: pageTheme?.tableHeaderPadding ?? const EdgeInsets.symmetric(vertical: 16),
                                         child: Text(
                                           'Customer',
                                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -221,7 +222,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                     ),
                                     ...['Left PD','Right PD','Left Add','Right Add','Left Axis','Right Axis','Left Sph','Right Sph','Right Cyl'].map((col) => Expanded(
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: pageTheme?.tableHeaderPadding ?? const EdgeInsets.symmetric(vertical: 16),
                                         child: Text(
                                           col,
                                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -234,7 +235,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                     SizedBox(
                                       width: 100,
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        padding: pageTheme?.tableHeaderPadding ?? const EdgeInsets.symmetric(vertical: 16),
                                         child: Text(
                                           'Action',
                                           style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -260,29 +261,38 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                       orElse: () => Customer(id: 0, name: 'Unknown Customer', email: '', phoneNumber: '', address: '', createdAt: DateTime.now())
                                     );
                                     final rowColor = index % 2 == 0
-                                      ? Theme.of(context).extension<AppPageTheme>()?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
-                                      : Theme.of(context).extension<AppPageTheme>()?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5);
+                                      ? pageTheme?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+                                      : pageTheme?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5);
                                     return InkWell(
                                       onTap: () => _showPrescriptionDialog(prescription: p),
                                       borderRadius: BorderRadius.zero,
                                       child: Container(
-                                        padding: const EdgeInsets.all(16),
+                                        padding: pageTheme?.tableRowPadding ?? const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
                                           color: rowColor,
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                              color: pageTheme != null
+                                                ? pageTheme.tableBorderColor.withOpacity(pageTheme.tableBorderOpacity)
+                                                : Theme.of(context).dividerColor.withOpacity(0.1),
                                             ),
                                           ),
                                         ),
                                         child: Row(
                                           children: [
                                             SizedBox(
-                                              width: 40,
-                                              child: Text(
-                                                serial.toString(),
-                                                textAlign: TextAlign.center,
-                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                              width: pageTheme?.serialWidth ?? 40,
+                                              child: Container(
+                                                padding: pageTheme?.serialPadding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                                  borderRadius: pageTheme?.serialRadius ?? BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  serial.toString(),
+                                                  textAlign: TextAlign.center,
+                                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                                ),
                                               ),
                                             ),
                                             Expanded(
@@ -316,12 +326,12 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                                 children: [
                                                   Container(
                                                     decoration: BoxDecoration(
-                                                      color: Theme.of(context).colorScheme.primary,
-                                                      borderRadius: BorderRadius.circular(6),
+                                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                                      borderRadius: pageTheme?.iconButtonRadius ?? BorderRadius.circular(8),
                                                     ),
                                                     child: IconButton(
                                                       onPressed: () => _showPrescriptionDialog(prescription: p),
-                                                      icon: const Icon(Icons.edit_rounded, color: Colors.white),
+                                                      icon: const Icon(Icons.edit_rounded, color: Colors.blue),
                                                       iconSize: 18,
                                                       tooltip: 'Edit',
                                                     ),
@@ -329,8 +339,8 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                                   const SizedBox(width: 8),
                                                   Container(
                                                     decoration: BoxDecoration(
-                                                      color: Colors.red,
-                                                      borderRadius: BorderRadius.circular(6),
+                                                      color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                                                      borderRadius: pageTheme?.iconButtonRadius ?? BorderRadius.circular(8),
                                                     ),
                                                     child: IconButton(
                                                       onPressed: () async {
@@ -362,7 +372,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                                                           }
                                                         }
                                                       },
-                                                      icon: const Icon(Icons.delete_rounded, color: Colors.white),
+                                                      icon: const Icon(Icons.delete_rounded, color: Colors.red),
                                                       iconSize: 18,
                                                       tooltip: 'Delete',
                                                     ),

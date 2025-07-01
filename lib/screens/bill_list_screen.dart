@@ -24,8 +24,6 @@ class _BillListScreenState extends State<BillListScreen> {
   int _currentPage = 0;
   static const int _pageSize = 10;
 
-  final ScrollController _horizontalScrollController = ScrollController();
-
   int get _totalPages => (_filteredBills.length / _pageSize).ceil();
 
   List<Bill> get _currentPageBills {
@@ -213,21 +211,21 @@ class _BillListScreenState extends State<BillListScreen> {
                             children: [
                               // Table Header: add more padding to each column for readability
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                                padding: Theme.of(context).extension<AppPageTheme>()?.tableHeaderPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(12),
-                                    topRight: Radius.circular(12),
+                                  color: Theme.of(context).extension<AppPageTheme>()?.tableHeaderBg ?? Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Theme.of(context).extension<AppPageTheme>()?.cardRadius.topLeft ?? const Radius.circular(12),
+                                    topRight: Theme.of(context).extension<AppPageTheme>()?.cardRadius.topRight ?? const Radius.circular(12),
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     SizedBox(
-                                      width: 40,
+                                      width: Theme.of(context).extension<AppPageTheme>()?.serialWidth ?? 40,
                                       child: Text(
                                         '#',
-                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white),
                                         textAlign: TextAlign.center,
                                       ),
                                     ),
@@ -235,45 +233,45 @@ class _BillListScreenState extends State<BillListScreen> {
                                       flex: 2,
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text('Customer', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                        child: Text('Customer', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white)),
                                       ),
                                     ),
                                     Expanded(
                                       flex: 2,
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text('Sales Person', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                        child: Text('Sales Person', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white)),
                                       ),
                                     ),
                                     Expanded(
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text('Invoice Date', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                        child: Text('Invoice Date', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white)),
                                       ),
                                     ),
                                     Expanded(
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text('Delivery Date', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                        child: Text('Delivery Date', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white)),
                                       ),
                                     ),
                                     Expanded(
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text('Invoice Time', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                        child: Text('Invoice Time', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white)),
                                       ),
                                     ),
                                     Expanded(
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text('Delivery Time', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                        child: Text('Delivery Time', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white)),
                                       ),
                                     ),
                                     Expanded(
                                       flex: 2,
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                                        child: Text('Bill Items', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                        child: Text('Bill Items', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white)),
                                       ),
                                     ),
                                     const SizedBox(width: 100), // Actions column
@@ -287,28 +285,38 @@ class _BillListScreenState extends State<BillListScreen> {
                                   itemBuilder: (context, index) {
                                     final bill = _currentPageBills[index];
                                     final serial = _currentPage * _pageSize + index + 1;
+                                    final pageTheme = Theme.of(context).extension<AppPageTheme>();
                                     return GestureDetector(
                                       onTap: () => _showBillDialog(bill: bill),
                                       child: Container(
-                                        padding: const EdgeInsets.all(16),
+                                        padding: pageTheme?.tableRowPadding ?? const EdgeInsets.all(16),
                                         decoration: BoxDecoration(
                                           color: index % 2 == 0
-                                            ? Theme.of(context).extension<AppPageTheme>()?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
-                                            : Theme.of(context).extension<AppPageTheme>()?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
+                                            ? pageTheme?.tableEvenRowBg ?? Theme.of(context).colorScheme.surface
+                                            : pageTheme?.tableOddRowBg ?? Theme.of(context).colorScheme.surface.withOpacity(0.5),
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                              color: pageTheme != null
+                                                ? pageTheme.tableBorderColor.withOpacity(pageTheme.tableBorderOpacity)
+                                                : Theme.of(context).dividerColor.withOpacity(0.1),
                                             ),
                                           ),
                                         ),
                                         child: Row(
                                           children: [
                                             SizedBox(
-                                              width: 40,
-                                              child: Text(
-                                                serial.toString(),
-                                                textAlign: TextAlign.center,
-                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                                              width: pageTheme?.serialWidth ?? 40,
+                                              child: Container(
+                                                padding: pageTheme?.serialPadding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                                  borderRadius: pageTheme?.serialRadius ?? BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  serial.toString(),
+                                                  textAlign: TextAlign.center,
+                                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                                ),
                                               ),
                                             ),
                                             Expanded(
@@ -380,16 +388,30 @@ class _BillListScreenState extends State<BillListScreen> {
                                               child: Row(
                                                 mainAxisAlignment: MainAxisAlignment.end,
                                                 children: [
-                                                  IconButton(
-                                                    icon: const Icon(Icons.edit_rounded, size: 18),
-                                                    tooltip: 'Edit',
-                                                    onPressed: () => _showBillDialog(bill: bill),
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                                      borderRadius: pageTheme?.iconButtonRadius ?? BorderRadius.circular(8),
+                                                    ),
+                                                    child: IconButton(
+                                                      icon: const Icon(Icons.edit_rounded, size: 18),
+                                                      color: Theme.of(context).colorScheme.primary,
+                                                      tooltip: 'Edit',
+                                                      onPressed: () => _showBillDialog(bill: bill),
+                                                    ),
                                                   ),
-                                                  IconButton(
-                                                    icon: const Icon(Icons.delete_rounded, size: 18),
-                                                    color: Colors.red,
-                                                    tooltip: 'Delete',
-                                                    onPressed: () => _deleteBill(bill),
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                                                      borderRadius: pageTheme?.iconButtonRadius ?? BorderRadius.circular(8),
+                                                    ),
+                                                    child: IconButton(
+                                                      icon: const Icon(Icons.delete_rounded, size: 18),
+                                                      color: Theme.of(context).colorScheme.error,
+                                                      tooltip: 'Delete',
+                                                      onPressed: () => _deleteBill(bill),
+                                                    ),
                                                   ),
                                                 ],
                                               ),
